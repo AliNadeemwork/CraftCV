@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* A4 and Letter page geometry at 96dpi (CSS px). */
+  --page-a4-w: 794px;
+  --page-a4-h: 1123px;
+  --page-letter-w: 816px;
+  --page-letter-h: 1056px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- App chrome (editor UI) ---------------------------------------------- */
+.app-shell {
+  background: theme('colors.canvas.DEFAULT');
+  color: theme('colors.ink.DEFAULT');
+}
+.dark .app-shell {
+  background: theme('colors.canvas.dark');
+  color: #e7e4df;
+}
+
+/* Focus ring shared across interactive controls for keyboard accessibility. */
+.focusable:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[contenteditable]:focus-visible {
+  outline: 2px solid var(--accent, #c2683b);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---- Paper (resume preview) ---------------------------------------------- */
+/* The paper is ALWAYS white, even in dark mode. */
+.cv-page {
+  background: #ffffff;
+  color: #1a1a1a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 10px 30px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Rich-text content rendering inside the paper. */
+.cv-rich p { margin: 0 0 0.4em; }
+.cv-rich p:last-child { margin-bottom: 0; }
+.cv-rich ul { margin: 0.2em 0; padding-left: 1.1em; list-style: disc; }
+.cv-rich ol { margin: 0.2em 0; padding-left: 1.2em; list-style: decimal; }
+.cv-rich li { margin: 0.1em 0; }
+.cv-rich a { color: inherit; text-decoration: underline; }
+.cv-rich b, .cv-rich strong { font-weight: 700; }
+.cv-rich i, .cv-rich em { font-style: italic; }
+.cv-rich u { text-decoration: underline; }
+
+/* contentEditable placeholder */
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+/* Keep the print mount off-screen until an actual print is triggered. */
+#print-root {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+}
+
+/* ---- Print / PDF export -------------------------------------------------- */
+@media print {
+  @page {
+    size: var(--print-size, A4);
+    margin: 0;
+  }
+  html,
+  body,
+  #root {
+    height: auto;
+    background: #fff;
+  }
+  /* Hide everything except the print root. */
+  body * {
+    visibility: hidden;
+  }
+  #print-root,
+  #print-root * {
+    visibility: visible;
+  }
+  #print-root {
+    position: absolute;
+    inset: 0;
+  }
+  .cv-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+    /* Each page becomes one physical sheet. */
+    page-break-after: always;
+    break-after: page;
+  }
+  .cv-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Utility: thin scrollbars in editor panels. */
+.thin-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.dark .thin-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  background-clip: content-box;
+}
