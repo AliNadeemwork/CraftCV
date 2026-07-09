@@ -52,23 +52,27 @@ export default function Dashboard() {
     reader.readAsText(file);
   };
 
-  const onImportPdf = async (file: File | undefined) => {
+  const onImportDoc = async (file: File | undefined) => {
     if (!file) return;
     setImportSource(file.name);
     setParsing(true);
+    const isDocx = /\.docx$/i.test(file.name) || file.type.includes('word');
     try {
       const buf = await file.arrayBuffer();
-      // Lazy-load pdf.js so it's only fetched when a PDF is actually imported,
-      // keeping the main/editor bundle small.
-      const { extractPdfText } = await import('../utils/import/extractPdf');
-      const { text, hasTextLayer } = await extractPdfText(buf);
-      if (!hasTextLayer) {
-        setScanned(true);
+      if (isDocx) {
+        const { extractDocxText } = await import('../utils/import/extractDocx');
+        const { text, hasText } = await extractDocxText(buf);
+        if (!hasText) setScanned(true);
+        else setParseResult(parseResume(text));
       } else {
-        setParseResult(parseResume(text));
+        // Lazy-load pdf.js so it's only fetched when a PDF is imported.
+        const { extractPdfText } = await import('../utils/import/extractPdf');
+        const { text, hasTextLayer } = await extractPdfText(buf);
+        if (!hasTextLayer) setScanned(true);
+        else setParseResult(parseResume(text));
       }
     } catch (e) {
-      setError(`Could not read that PDF. ${(e as Error).message}`);
+      setError(`Could not read that file. ${(e as Error).message}`);
     } finally {
       setParsing(false);
       if (pdfRef.current) pdfRef.current.value = '';
@@ -119,13 +123,19 @@ export default function Dashboard() {
           </Button>
           <Button variant="secondary" onClick={() => pdfRef.current?.click()} disabled={parsing}>
             {parsing ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
-            {parsing ? 'Reading PDF…' : 'Import PDF'}
+            {parsing ? 'Reading…' : 'Import PDF / DOCX'}
           </Button>
           <Button variant="secondary" onClick={() => setTextImport(true)}>
             <FileDown size={16} /> Import from text
           </Button>
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => onImportFile(e.target.files?.[0])} />
-          <input ref={pdfRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => onImportPdf(e.target.files?.[0])} />
+          <input
+            ref={pdfRef}
+            type="file"
+            accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="hidden"
+            onChange={(e) => onImportDoc(e.target.files?.[0])}
+          />
         </div>
 
         {resumes.length === 0 ? (
