@@ -29,6 +29,10 @@ export function formatDateValue(value: string, fmt: DateFormat): string {
       return `${MONTHS_LONG[mi]} ${year}`;
     case 'MM/YYYY':
       return `${String(monthNum).padStart(2, '0')}/${year}`;
+    case 'MM.YYYY':
+      return `${String(monthNum).padStart(2, '0')}.${year}`;
+    case "MMM 'YY":
+      return `${MONTHS_SHORT[mi]} '${year.slice(2)}`;
     default:
       return v;
   }
