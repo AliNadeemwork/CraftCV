@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Copy, Trash2, Pencil, Upload, Sparkles, FileDown, MoreVertical, Moon, Sun } from 'lucide-react';
+import { Plus, Copy, Trash2, Pencil, Upload, Sparkles, FileDown, MoreVertical, Moon, Sun, FileUp, Loader2 } from 'lucide-react';
 import { useResumeStore } from '../store/resumeStore';
 import { useUIStore } from '../store/uiStore';
 import { APP_NAME, APP_TAGLINE } from '../config';
@@ -12,17 +12,24 @@ import { friendlyDate } from '../utils/date';
 import { downloadResumeJson, parseResumeJson } from '../utils/jsonBackup';
 import { importFromText } from '../utils/textImport';
 import { sampleResume } from '../utils/sampleData';
+import { parseResume, type ParseResult } from '../utils/import/resumeParser';
+import ImportReviewModal from '../components/import/ImportReviewModal';
 
 export default function Dashboard() {
   const nav = useNavigate();
   const { resumes, addResume, duplicateResume, deleteResume, renameResume, importResume } = useResumeStore();
   const { theme, toggleTheme } = useUIStore();
   const fileRef = useRef<HTMLInputElement>(null);
+  const pdfRef = useRef<HTMLInputElement>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const [textImport, setTextImport] = useState(false);
   const [pasteValue, setPasteValue] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseResult, setParseResult] = useState<ParseResult | null>(null);
+  const [importSource, setImportSource] = useState('');
+  const [scanned, setScanned] = useState(false);
 
   const onNew = () => nav(`/editor/${addResume('Untitled Resume')}`);
   const onExample = () => {
@@ -42,6 +49,29 @@ export default function Dashboard() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const onImportPdf = async (file: File | undefined) => {
+    if (!file) return;
+    setImportSource(file.name);
+    setParsing(true);
+    try {
+      const buf = await file.arrayBuffer();
+      // Lazy-load pdf.js so it's only fetched when a PDF is actually imported,
+      // keeping the main/editor bundle small.
+      const { extractPdfText } = await import('../utils/import/extractPdf');
+      const { text, hasTextLayer } = await extractPdfText(buf);
+      if (!hasTextLayer) {
+        setScanned(true);
+      } else {
+        setParseResult(parseResume(text));
+      }
+    } catch (e) {
+      setError(`Could not read that PDF. ${(e as Error).message}`);
+    } finally {
+      setParsing(false);
+      if (pdfRef.current) pdfRef.current.value = '';
+    }
   };
 
   const onPasteImport = () => {
@@ -86,10 +116,15 @@ export default function Dashboard() {
           <Button variant="secondary" onClick={() => fileRef.current?.click()}>
             <Upload size={16} /> Import JSON
           </Button>
+          <Button variant="secondary" onClick={() => pdfRef.current?.click()} disabled={parsing}>
+            {parsing ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+            {parsing ? 'Reading PDF…' : 'Import PDF'}
+          </Button>
           <Button variant="secondary" onClick={() => setTextImport(true)}>
             <FileDown size={16} /> Import from text
           </Button>
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => onImportFile(e.target.files?.[0])} />
+          <input ref={pdfRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => onImportPdf(e.target.files?.[0])} />
         </div>
 
         {resumes.length === 0 ? (
@@ -171,6 +206,26 @@ export default function Dashboard() {
             <Button variant="ghost" onClick={() => setTextImport(false)}>Cancel</Button>
             <Button variant="primary" onClick={onPasteImport}>Import</Button>
           </div>
+        </div>
+      </Modal>
+
+      <ImportReviewModal
+        open={!!parseResult}
+        result={parseResult}
+        sourceLabel={importSource}
+        onClose={() => setParseResult(null)}
+        onImported={(id) => nav(`/editor/${id}`)}
+      />
+
+      <Modal open={scanned} onClose={() => setScanned(false)} title="This looks like a scanned PDF">
+        <p className="text-sm text-ink-soft">
+          {importSource} has no selectable text layer — it's likely a scan or an image. {APP_NAME} doesn't
+          run OCR. Try exporting the resume as a text-based PDF, or use <b>Import from text</b> and paste the
+          content instead.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setScanned(false)}>Close</Button>
+          <Button variant="primary" onClick={() => { setScanned(false); setTextImport(true); }}>Paste text instead</Button>
         </div>
       </Modal>
 
