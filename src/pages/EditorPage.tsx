@@ -13,6 +13,7 @@ import DesignCustomizer from '../components/customizer/DesignCustomizer';
 import PreviewPane from '../components/preview/PreviewPane';
 import { exportResumePdf } from '../utils/exportPdf';
 import { downloadResumeJson } from '../utils/jsonBackup';
+import { downloadResumeText } from '../utils/textExport';
 import { APP_NAME } from '../config';
 
 type Tab = 'content' | 'design';
@@ -111,6 +112,9 @@ export default function EditorPage() {
           </Button>
           <Button size="sm" variant="ghost" onClick={() => downloadResumeJson(resume)} title="Export JSON backup">
             <FileJson size={15} /> <span className="hidden lg:inline">JSON</span>
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => downloadResumeText(resume)} title="Export plain text (.txt)">
+            <FileText size={15} /> <span className="hidden lg:inline">TXT</span>
           </Button>
           <Button size="sm" variant="primary" onClick={() => exportResumePdf(resume)}>
             <Download size={15} /> <span className="hidden sm:inline">Export PDF</span>

@@ -10,6 +10,7 @@ import Modal from '../components/ui/Modal';
 import { TextInput, TextArea } from '../components/ui/primitives';
 import { friendlyDate } from '../utils/date';
 import { downloadResumeJson, parseResumeJson } from '../utils/jsonBackup';
+import { downloadResumeText } from '../utils/textExport';
 import { importFromText } from '../utils/textImport';
 import { sampleResume } from '../utils/sampleData';
 import { parseResume, type ParseResult } from '../utils/import/resumeParser';
@@ -166,6 +167,7 @@ export default function Dashboard() {
                           <MenuItem icon={<Pencil size={14} />} label="Rename" onClick={() => { setRenaming({ id: r.id, name: r.name }); setMenuFor(null); }} />
                           <MenuItem icon={<Copy size={14} />} label="Duplicate" onClick={() => { duplicateResume(r.id); setMenuFor(null); }} />
                           <MenuItem icon={<FileDown size={14} />} label="Export JSON" onClick={() => { downloadResumeJson(r); setMenuFor(null); }} />
+                          <MenuItem icon={<FileDown size={14} />} label="Export text" onClick={() => { downloadResumeText(r); setMenuFor(null); }} />
                           <MenuItem icon={<Trash2 size={14} />} label="Delete" danger onClick={() => { if (confirm(`Delete “${r.name}”? This cannot be undone.`)) deleteResume(r.id); setMenuFor(null); }} />
                         </div>
                       </>
