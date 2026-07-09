@@ -260,7 +260,7 @@ function SkillsBody({
 }): ReactNode {
   // Group by `group`, preserving first-seen order.
   const groups = new Map<string, SkillEntry[]>();
-  for (const s of entries) {
+  for (const s of entries.filter((e) => !e.hidden)) {
     const key = s.group || '';
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(s);
@@ -291,7 +291,7 @@ function SkillsBody({
 function LanguagesBody({ entries, ctx }: { entries: LanguageEntry[]; ctx: RenderContext }): ReactNode {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {entries.map((l) => (
+      {entries.filter((l) => !l.hidden).map((l) => (
         <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5em' }}>
           <span style={{ color: strong(ctx.onAccent) }}>{l.name}</span>
           <span style={{ color: muted(ctx.onAccent), fontSize: '0.9em' }}>{l.level}</span>
@@ -304,7 +304,7 @@ function LanguagesBody({ entries, ctx }: { entries: LanguageEntry[]; ctx: Render
 function SimpleBody({ entries, ctx }: { entries: SimpleEntry[]; ctx: RenderContext }): ReactNode {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35em' }}>
-      {entries.map((e) => (
+      {entries.filter((e) => !e.hidden).map((e) => (
         <div key={e.id}>
           {e.title && <span style={{ fontWeight: 600, color: strong(ctx.onAccent) }}>{e.title}</span>}
           {e.description && (

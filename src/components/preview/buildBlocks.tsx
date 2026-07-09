@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type { PersonalInfo, Resume, Section } from '../../types/resume';
+import type { PersonalInfo, PhotoShape, Resume, Section } from '../../types/resume';
 import type { TemplateConfig } from '../templates/templates';
 import type { RenderContext } from './sectionRenderers';
 import {
@@ -57,7 +57,7 @@ function Photo({
   ctx,
 }: {
   p: PersonalInfo;
-  ctx: RenderContext & { photoShape: 'round' | 'square' };
+  ctx: RenderContext & { photoShape: PhotoShape };
 }): ReactNode {
   if (!p.photo) return null;
   const size = 74;
@@ -84,7 +84,7 @@ function Header({
   accent,
 }: {
   p: PersonalInfo;
-  ctx: RenderContext & { photoShape: 'round' | 'square'; showPhoto: boolean };
+  ctx: RenderContext & { photoShape: PhotoShape; showPhoto: boolean };
   banner: boolean;
   accent: string;
 }): ReactNode {
@@ -137,7 +137,7 @@ interface BuildArgs {
   ctxBase: Omit<RenderContext, 'titleStyle' | 'onAccent'>;
   sectionSpacing: number;
   showPhoto: boolean;
-  photoShape: 'round' | 'square';
+  photoShape: PhotoShape;
 }
 
 function sectionBlocks(
@@ -153,14 +153,18 @@ function sectionBlocks(
   };
 
   if (ENTRY_KINDS.has(section.kind)) {
-    const entries = (section as { entries: { id: string }[] }).entries;
-    if (!entries.length) return []; // hide empty sections entirely
+    const allEntries = (section as { entries: { id: string; hidden?: boolean }[] }).entries;
+    // Entries flagged hidden are kept in data but excluded from the output.
+    const visibleIdx = allEntries
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => !e.hidden);
+    if (!visibleIdx.length) return []; // hide empty/all-hidden sections entirely
     const blocks: Block[] = [heading];
-    entries.forEach((entry, i) => {
+    visibleIdx.forEach(({ i }, pos) => {
       blocks.push({
-        key: `${section.id}-${entry.id}`,
+        key: `${section.id}-${allEntries[i].id}`,
         node: renderEntry(section, i, ctx),
-        spacingBefore: i === 0 ? 4 : 9,
+        spacingBefore: pos === 0 ? 4 : 9,
         keepWithNext: false,
       });
     });
