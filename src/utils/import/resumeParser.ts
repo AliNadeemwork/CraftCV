@@ -56,23 +56,32 @@ const LINKEDIN_RE = /((https?:\/\/)?(www\.)?linkedin\.com\/[^\s]+)/i;
 // --- Date-range detection --------------------------------------------------
 
 const MONTHS =
-  '(jan(?:uary|uar)?|feb(?:ruary|ruar)?|mar(?:ch|z|z)?|märz|apr(?:il)?|may|mai|jun[ei]?|jul[iy]?|aug(?:ust)?|sep(?:tember|t)?|o[ck]t(?:ober)?|nov(?:ember)?|de[cz](?:ember)?)';
-const YEAR = '(19|20)\\d{2}';
-const PRESENT = '(present|current|now|today|heute|aktuell|jetzt|laufend|date)';
-// A single date token: "Jan 2020", "01/2020", "2020", "03.2020"
-const DATE_TOKEN = `(?:${MONTHS}\\.?\\s*)?(?:\\d{1,2}[./]\\s*)?${YEAR}`;
+  '(jan(?:uary|uar)?|feb(?:ruary|ruar)?|mar(?:ch)?|märz|mär|apr(?:il)?|may|mai|jun[ei]?|jul[iy]?|aug(?:ust)?|sep(?:tember|t)?|o[ck]t(?:ober)?|nov(?:ember)?|de[cz](?:ember)?)';
+const YEAR4 = '(?:19|20)\\d{2}';
+const PRESENT = '(present|current|ongoing|now|today|heute|aktuell|jetzt|laufend)';
+// Date tokens accept 2- OR 4-digit years: "May 25", "May 2025", "May '25",
+// "05/2020", "05/20", or a bare 4-digit year.
+const MONTH_YEAR = `${MONTHS}\\.?\\s*'?\\d{2,4}`;
+const NUM_YEAR = `\\d{1,2}[./]\\s*'?\\d{2,4}`;
+const DATE_TOKEN = `(?:${MONTH_YEAR}|${NUM_YEAR}|${YEAR4})`;
 const RANGE_RE = new RegExp(
-  `(${DATE_TOKEN}|since\\s+${DATE_TOKEN}|seit\\s+${DATE_TOKEN})\\s*(?:[-–—]|to|bis|until)\\s*(${DATE_TOKEN}|${PRESENT})`,
+  `(?:since|seit)?\\s*${DATE_TOKEN}\\s*(?:[-–—]|to|bis|until)\\s*(?:${DATE_TOKEN}|${PRESENT})`,
   'i',
 );
 const SINGLE_DATE_RE = new RegExp(`(${DATE_TOKEN})`, 'i');
 
 function toIsoish(token: string): string {
   const t = token.trim();
-  if (new RegExp(`^${PRESENT}$`, 'i').test(t)) return '';
-  // Extract year and optional month.
-  const yearM = /(19|20)\d{2}/.exec(t);
-  const year = yearM ? yearM[0] : '';
+  if (!t || new RegExp(`^${PRESENT}$`, 'i').test(t)) return '';
+  // Year: prefer a 4-digit year; otherwise expand a 2-digit year.
+  let year = /(?:19|20)\d{2}/.exec(t)?.[0] ?? '';
+  if (!year) {
+    const yy = /'?(\d{2})(?!\d)/.exec(t)?.[1];
+    if (yy) {
+      const n = 2000 + parseInt(yy, 10);
+      year = String(n > new Date().getFullYear() + 1 ? n - 100 : n); // 2-digit → 20xx (or 19xx if future)
+    }
+  }
   if (!year) return t; // leave free text
   const monthM = new RegExp(MONTHS, 'i').exec(t);
   const numM = /\b(\d{1,2})[./]/.exec(t);
@@ -93,19 +102,20 @@ function monthIndex(m: string): number {
 
 function extractRange(line: string): { range: DateRange; rest: string } | null {
   const m = RANGE_RE.exec(line);
-  if (m) {
-    const startTok = m[1];
-    const endTok = m[m.length - 1] ?? '';
-    const present = new RegExp(PRESENT, 'i').test(endTok);
-    const range: DateRange = {
-      start: toIsoish(startTok.replace(/^(since|seit)\s+/i, '')),
-      end: present ? '' : toIsoish(endTok),
-      present,
-    };
-    const rest = (line.slice(0, m.index) + ' ' + line.slice(m.index + m[0].length)).replace(/\s{2,}/g, ' ').trim();
-    return { range, rest };
-  }
-  return null;
+  if (!m) return null;
+  const whole = m[0];
+  const present = new RegExp(`(?:[-–—]|to|bis|until)\\s*${PRESENT}\\s*$`, 'i').test(whole);
+  const cleaned = whole.replace(/^\s*(?:since|seit)\s+/i, '');
+  const parts = cleaned.split(/\s*(?:[-–—]|to|bis|until)\s*/i);
+  const range: DateRange = {
+    start: toIsoish(parts[0] ?? ''),
+    end: present ? '' : toIsoish(parts[1] ?? ''),
+    present,
+  };
+  const rest = (line.slice(0, m.index) + ' ' + line.slice(m.index + whole.length))
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return { range, rest };
 }
 
 // --- Line utilities --------------------------------------------------------
@@ -132,7 +142,14 @@ function matchHeading(line: string): (typeof HEADINGS)[number] | null {
 
 export function parseResume(rawText: string): ParseResult {
   const resume = createResume('Imported Resume');
-  const lines = rawText.replace(/\r/g, '').split('\n').map((l) => l.replace(/ /g, ' ').trimEnd());
+  const allLines = rawText.replace(/\r/g, '').split('\n').map((l) => l.replace(/ /g, ' ').trimEnd());
+
+  // Drop page footers/headers like "Ali Nadeem   1/2", "1 / 2", "Page 1 of 2".
+  const lines = allLines.filter(
+    (l) =>
+      !/^(.{0,60}?\s)?\d{1,2}\s*\/\s*\d{1,2}\s*$/.test(l) &&
+      !/^page\s+\d+(\s+of\s+\d+)?$/i.test(l.trim()),
+  );
 
   // 1. Header block: everything before the first recognised heading.
   let cursor = 0;
@@ -196,6 +213,11 @@ function applyHeader(resume: Resume, header: string[]): void {
     );
     if (jt) resume.personalInfo.jobTitle = jt;
   }
+  // Location: a "City, Country" token in the contact block.
+  const locHay = joined.replace(email, '').replace(phone, '').replace(linkedin, '');
+  const locM = /([\p{Lu}][\p{L}.'-]+,\s*[\p{Lu}][\p{L}.'-]+)/u.exec(locHay);
+  if (locM) resume.personalInfo.location = locM[1].trim();
+
   resume.personalInfo.email = email;
   resume.personalInfo.phone = phone;
   resume.personalInfo.website = website;
@@ -277,50 +299,66 @@ function buildSection(def: (typeof HEADINGS)[number], rawLines: string[]): Secti
   return { ...base, kind: def.kind as 'interests', entries } as Section;
 }
 
-/** Split an entry-section block into entries using date ranges + line grouping. */
+/**
+ * Split an entry-section block into entries.
+ *
+ * Resumes anchor each entry on a date range. Around that anchor sit context
+ * lines (company / institution) that may appear *before* the dated line
+ * ("Shispare" then "Project Manager  May 25 – Jul 25") or *after* it
+ * ("Masters …  Oct 25 – Present" then "Universität Koblenz"). We buffer
+ * non-dated lines and attach them to the nearest entry:
+ *   - before any bullet of the current entry → trailing context of THAT entry
+ *   - after a bullet has appeared → leading context of the NEXT entry
+ * Company carries forward so several roles listed under one employer all keep
+ * that employer even though it is written only once.
+ */
+interface Building {
+  id: string;
+  role: string;
+  date: DateRange;
+  leading: string[];
+  trailing: string[];
+  bullets: string[];
+  sawBullet: boolean;
+}
+
 function parseEntries(lines: string[]): ExperienceEntry[] {
   const entries: ExperienceEntry[] = [];
-  let cur: (ExperienceEntry & { _bullets: string[]; _hasDate: boolean; _headerLines: string[] }) | null = null;
-
-  const newEntry = () => {
-    const e = {
-      id: uid('e'),
-      title: '',
-      company: '',
-      location: '',
-      date: emptyRange(),
-      description: '',
-      _bullets: [] as string[],
-      _hasDate: false,
-      _headerLines: [] as string[],
-    };
-    return e;
-  };
+  let cur: Building | null = null;
+  let preBuffer: string[] = [];
+  let lastCompany = '';
 
   const finalize = () => {
     if (!cur) return;
-    // Assign header lines → title / company (+ location).
-    const [h0, h1] = cur._headerLines;
-    if (h0) {
-      const parts = splitTitleCompany(h0);
-      cur.title = parts.title;
-      if (parts.company) cur.company = parts.company;
+    const context = [...cur.leading, ...cur.trailing].map((s) => s.trim()).filter(Boolean);
+    let role = cur.role.trim();
+    let company = '';
+    let location = '';
+
+    if (role) {
+      company = context[0] ?? '';
+    } else {
+      role = context[0] ?? '';
+      company = context[1] ?? '';
     }
-    if (h1 && !cur.company) {
-      const parts = splitTitleCompany(h1);
-      cur.company = parts.title;
-      if (parts.company) cur.location = parts.company;
-    } else if (h1) {
-      // extra header line → prepend to description
-      cur._bullets.unshift(h1);
+    // If the role line embeds "Role — Company" and we have no company yet, split.
+    if (role && !company) {
+      const p = splitTitleCompany(role);
+      role = p.title;
+      company = p.company;
     }
-    const bulletHtml = cur._bullets.length
-      ? `<ul>${cur._bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}</ul>`
+    if (company) {
+      const lc = splitCompanyLocation(company);
+      company = lc.company;
+      location = lc.location;
+    }
+    if (company) lastCompany = company;
+    else company = lastCompany; // carry employer across multiple roles
+
+    const description = cur.bullets.length
+      ? `<ul>${cur.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}</ul>`
       : '';
-    cur.description = bulletHtml;
-    const { _bullets, _hasDate, _headerLines, ...clean } = cur;
-    void _bullets; void _hasDate; void _headerLines;
-    entries.push(clean);
+    entries.push({ id: cur.id, title: role, company, location, date: cur.date, description });
     cur = null;
   };
 
@@ -329,31 +367,43 @@ function parseEntries(lines: string[]): ExperienceEntry[] {
     if (!line) continue;
 
     if (isBullet(line)) {
-      if (!cur) cur = newEntry();
-      cur._bullets.push(stripBullet(line));
+      if (!cur) cur = { id: uid('e'), role: '', date: emptyRange(), leading: preBuffer, trailing: [], bullets: [], sawBullet: false };
+      if (cur.leading === preBuffer) preBuffer = [];
+      cur.bullets.push(stripBullet(line));
+      cur.sawBullet = true;
       continue;
     }
 
     const dr = extractRange(line);
-    // A new entry starts when we hit a header/date line and the current entry
-    // already has its date (i.e. is "complete").
-    if (cur && cur._hasDate) finalize();
-    if (!cur) cur = newEntry();
-
     if (dr) {
-      cur.date = dr.range;
-      cur._hasDate = true;
-      if (dr.rest) cur._headerLines.push(dr.rest);
+      finalize();
+      cur = { id: uid('e'), role: dr.rest, date: dr.range, leading: preBuffer, trailing: [], bullets: [], sawBullet: false };
+      preBuffer = [];
+    } else if (cur && !cur.sawBullet) {
+      // Context line immediately after the dated line (institution/company).
+      cur.trailing.push(line);
     } else {
-      cur._headerLines.push(line);
+      // Belongs to the next entry (company header before its dated role).
+      preBuffer.push(line);
     }
   }
   finalize();
   return entries;
 }
 
+/** Peel a trailing "City, Country" location off a company string. */
+function splitCompanyLocation(s: string): { company: string; location: string } {
+  const m = /^(.*\S)\s{2,}([\p{Lu}][\p{L}.'-]+(?:,\s*[\p{L}.'-]+)?)$/u.exec(s);
+  if (m) return { company: m[1].trim(), location: m[2].trim() };
+  const c = /^(.+?)\s+([\p{Lu}][\p{L}]+,\s*[\p{Lu}][\p{L}]+)$/u.exec(s);
+  if (c) return { company: c[1].trim(), location: c[2].trim() };
+  return { company: s.trim(), location: '' };
+}
+
 function splitTitleCompany(line: string): { title: string; company: string } {
-  const sepM = /\s+(?:[—–\-|·@]|at|bei|,)\s+/i.exec(line);
+  // Only split on strong separators. A plain hyphen is intentionally excluded
+  // because it is usually part of a job title ("Teaching Assistant - Networks").
+  const sepM = /\s+(?:[—–|·@]|at|bei)\s+/i.exec(line);
   if (sepM) {
     return {
       title: line.slice(0, sepM.index).trim(),

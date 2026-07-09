@@ -91,5 +91,52 @@ check('DE Kenntnisse → skills', deSkills && deSkills.entries.length === 4);
 const deLang = r2.resume.sections.find((s) => s.kind === 'languages') as any;
 check('DE Muttersprache → Native', deLang && deLang.entries[0].level === 'Native');
 
+// --- Real-world structure: company header + multiple roles, 2-digit dates ---
+const multi = `Ali Nadeem
+work.alinadeem@gmail.com  +49 163 3776130  Koblenz, Germany
+
+WORK EXPERIENCE
+Shispare
+Project Manager   May 25 – Jul 25
+- Led cross-functional teams of developers and AI engineers.
+- Owned end-to-end project execution.
+Associate Project Manager   Jul 24 – Apr 25
+- Coordinated a 15+ member Scrum team.
+Apprentice Project Manager   Jan 24 – Jun 24
+- Supported software and AI-related projects.
+National University of Computer and Emerging Sciences
+Teaching Assistant - Computer Networks   Jan 24 – May 24
+- Assisted in mentoring 50+ students.
+Teaching Assistant - Calculus and Analytical Geometry   Aug 23 – Dec 23
+- Supported instruction in calculus.
+
+EDUCATION
+Masters in Web and Data Science   Oct 25 – Present
+Universität Koblenz
+- Relevant coursework: Machine Learning, Data Science.
+Bachelors of Science in Computer Science   Aug 20 – May 24
+National University of Computer and Emerging Sciences
+- Relevant coursework: OOP, Data Structures.`;
+
+const rm = parseResume(multi);
+check('multi name', rm.resume.personalInfo.name === 'Ali Nadeem');
+check('multi location', /Koblenz/.test(rm.resume.personalInfo.location));
+const wexp = rm.resume.sections.find((s) => s.kind === 'experience') as any;
+check('multi work section exists', !!wexp);
+check('multi 5 role entries (not collapsed)', wexp && wexp.entries.length === 5);
+check('multi role1 title', wexp && wexp.entries[0].title === 'Project Manager');
+check('multi role1 company Shispare', wexp && wexp.entries[0].company === 'Shispare');
+check('multi 2-digit start date', wexp && wexp.entries[0].date.start === '2025-05');
+check('multi role2 carries Shispare', wexp && wexp.entries[1].company === 'Shispare');
+check('multi role3 carries Shispare', wexp && wexp.entries[2].company === 'Shispare');
+check('multi role4 company switches', wexp && /National University/.test(wexp.entries[3].company));
+check('multi role5 carries National University', wexp && /National University/.test(wexp.entries[4].company));
+check('multi role1 bullets kept', wexp && /Led cross-functional/.test(wexp.entries[0].description));
+const medu = rm.resume.sections.find((s) => s.kind === 'education') as any;
+check('multi education 2 entries', medu && medu.entries.length === 2);
+check('multi edu1 degree', medu && /Masters in Web/.test(medu.entries[0].degree));
+check('multi edu1 institution', medu && /Universität Koblenz/.test(medu.entries[0].institution));
+check('multi edu1 present', medu && medu.entries[0].date.present === true);
+
 console.log(`\nparser tests: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
