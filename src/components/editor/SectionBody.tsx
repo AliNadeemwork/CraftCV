@@ -158,12 +158,11 @@ function EntryCard({
   onToggleHidden: () => void;
   languageLevels: LanguageLevel[];
 }) {
-  // Compact entries (skills, languages) render inline; rich entries collapse.
-  const compact = section.kind === 'skills' || section.kind === 'languages';
-  const [open, setOpen] = useState(false);
-
   const header = summarize(section, entry);
   const hidden = !!entry.hidden;
+  // Every entry type — skills and languages included — opens into a labeled form.
+  // New/empty entries start expanded so you can type straight away.
+  const [open, setOpen] = useState(header.trim() === '');
 
   return (
     <div
@@ -171,22 +170,16 @@ function EntryCard({
     >
       <div className={`flex items-center gap-1 px-1.5 py-1.5 ${hidden ? 'opacity-55' : ''}`}>
         {handle}
-        {compact ? (
-          <CompactFields section={section} entry={entry} onPatch={onPatch} languageLevels={languageLevels} />
-        ) : (
-          <>
-            <button
-              className="focusable flex flex-1 items-center gap-1 truncate rounded px-1 py-0.5 text-left text-sm text-ink hover:bg-black/[0.03] dark:text-neutral-100 dark:hover:bg-white/5"
-              onClick={() => setOpen((o) => !o)}
-            >
-              <ChevronDown
-                size={14}
-                className={`flex-shrink-0 text-ink-soft transition ${open ? 'rotate-180' : ''}`}
-              />
-              <span className="truncate">{header || 'Untitled'}</span>
-            </button>
-          </>
-        )}
+        <button
+          className="focusable flex flex-1 items-center gap-1 truncate rounded px-1 py-0.5 text-left text-sm text-ink hover:bg-black/[0.03] dark:text-neutral-100 dark:hover:bg-white/5"
+          onClick={() => setOpen((o) => !o)}
+        >
+          <ChevronDown
+            size={14}
+            className={`flex-shrink-0 text-ink-soft transition ${open ? 'rotate-180' : ''}`}
+          />
+          <span className="truncate">{header || 'Untitled'}</span>
+        </button>
         <button
           className="focusable rounded p-1.5 text-ink-soft hover:bg-black/5 dark:hover:bg-white/10"
           onClick={onToggleHidden}
@@ -212,9 +205,9 @@ function EntryCard({
         </button>
       </div>
 
-      {!compact && open && (
+      {open && (
         <div className="space-y-3 border-t border-black/5 px-3 py-3 dark:border-white/5">
-          <RichEntryFields section={section} entry={entry} onPatch={onPatch} />
+          <RichEntryFields section={section} entry={entry} onPatch={onPatch} languageLevels={languageLevels} />
         </div>
       )}
     </div>
@@ -237,12 +230,20 @@ function summarize(section: Section, entry: { id: string }): string {
       return (entry as ProjectEntry).name;
     case 'certificates':
       return (entry as CertificateEntry).name;
+    case 'skills':
+      return (entry as SkillEntry).name;
+    case 'languages': {
+      const e = entry as LanguageEntry;
+      return e.name ? `${e.name}${e.level ? ` — ${e.level}` : ''}` : '';
+    }
     default:
       return (entry as SimpleEntry).title;
   }
 }
 
-function CompactFields({
+const SKILL_LEVEL_LABELS = ['None', 'Novice', 'Beginner', 'Skillful', 'Experienced', 'Expert'];
+
+function RichEntryFields({
   section,
   entry,
   onPatch,
@@ -253,73 +254,57 @@ function CompactFields({
   onPatch: (patch: Record<string, unknown>) => void;
   languageLevels: LanguageLevel[];
 }) {
-  if (section.kind === 'skills') {
-    const e = entry as SkillEntry;
-    return (
-      <div className="flex flex-1 items-center gap-2">
-        <TextInput
-          value={e.name}
-          placeholder="Skill"
-          className="flex-1"
-          onChange={(ev) => onPatch({ name: ev.target.value })}
-        />
-        <TextInput
-          value={e.group}
-          placeholder="Group"
-          className="w-24"
-          onChange={(ev) => onPatch({ group: ev.target.value })}
-        />
-        {section.showLevels && (
-          <Select
-            value={String(e.level)}
-            onChange={(ev) => onPatch({ level: Number(ev.target.value) as SkillLevel })}
-            className="w-16"
-          >
-            {[0, 1, 2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>
-                {n === 0 ? '—' : n}
-              </option>
-            ))}
-          </Select>
-        )}
-      </div>
-    );
-  }
-  // languages
-  const e = entry as LanguageEntry;
-  return (
-    <div className="flex flex-1 items-center gap-2">
-      <TextInput
-        value={e.name}
-        placeholder="Language"
-        className="flex-1"
-        onChange={(ev) => onPatch({ name: ev.target.value })}
-      />
-      <Select
-        value={e.level}
-        onChange={(ev) => onPatch({ level: ev.target.value as LanguageLevel })}
-        className="w-36"
-      >
-        {languageLevels.map((l) => (
-          <option key={l} value={l}>
-            {l}
-          </option>
-        ))}
-      </Select>
-    </div>
-  );
-}
-
-function RichEntryFields({
-  section,
-  entry,
-  onPatch,
-}: {
-  section: Section;
-  entry: { id: string };
-  onPatch: (patch: Record<string, unknown>) => void;
-}) {
   switch (section.kind) {
+    case 'skills': {
+      const e = entry as SkillEntry;
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Skill">
+              <TextInput value={e.name} placeholder="e.g. Figma" onChange={(ev) => onPatch({ name: ev.target.value })} />
+            </Field>
+            <Field label="Group (optional)" hint="Groups skills under a sub-heading">
+              <TextInput value={e.group} placeholder="e.g. Tools" onChange={(ev) => onPatch({ group: ev.target.value })} />
+            </Field>
+          </div>
+          <Field label="Level" hint={section.showLevels ? undefined : 'Turn on “Show proficiency” above to display levels'}>
+            <div className="flex flex-wrap gap-1">
+              {[0, 1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => onPatch({ level: n as SkillLevel })}
+                  className={`focusable rounded-md px-2.5 py-1 text-xs ${
+                    e.level === n
+                      ? 'bg-brandaccent text-white'
+                      : 'border border-black/10 text-ink-soft hover:bg-black/[0.03] dark:border-white/10 dark:hover:bg-white/5'
+                  }`}
+                >
+                  {SKILL_LEVEL_LABELS[n]}
+                </button>
+              ))}
+            </div>
+          </Field>
+        </>
+      );
+    }
+    case 'languages': {
+      const e = entry as LanguageEntry;
+      return (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Language">
+            <TextInput value={e.name} placeholder="e.g. English" onChange={(ev) => onPatch({ name: ev.target.value })} />
+          </Field>
+          <Field label="Proficiency">
+            <Select value={e.level} onChange={(ev) => onPatch({ level: ev.target.value as LanguageLevel })}>
+              {languageLevels.map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      );
+    }
     case 'experience':
     case 'courses':
     case 'organisations': {
