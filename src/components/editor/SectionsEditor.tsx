@@ -24,7 +24,8 @@ import SectionBody from './SectionBody';
 
 const ADDABLE: SectionKind[] = [
   'summary', 'experience', 'education', 'skills', 'languages',
-  'projects', 'certificates', 'interests', 'awards', 'publications', 'references', 'custom',
+  'projects', 'certificates', 'courses', 'organisations',
+  'interests', 'awards', 'publications', 'references', 'custom',
 ];
 
 export default function SectionsEditor({ resume }: { resume: Resume }) {

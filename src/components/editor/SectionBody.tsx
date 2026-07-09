@@ -223,7 +223,9 @@ function EntryCard({
 
 function summarize(section: Section, entry: { id: string }): string {
   switch (section.kind) {
-    case 'experience': {
+    case 'experience':
+    case 'courses':
+    case 'organisations': {
       const e = entry as ExperienceEntry;
       return [e.title, e.company].filter(Boolean).join(' · ');
     }
@@ -318,15 +320,23 @@ function RichEntryFields({
   onPatch: (patch: Record<string, unknown>) => void;
 }) {
   switch (section.kind) {
-    case 'experience': {
+    case 'experience':
+    case 'courses':
+    case 'organisations': {
       const e = entry as ExperienceEntry;
+      const labels =
+        section.kind === 'courses'
+          ? { primary: 'Course', secondary: 'Provider' }
+          : section.kind === 'organisations'
+            ? { primary: 'Role', secondary: 'Organisation' }
+            : { primary: 'Job title', secondary: 'Company' };
       return (
         <>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Job title">
+            <Field label={labels.primary}>
               <TextInput value={e.title} onChange={(ev) => onPatch({ title: ev.target.value })} />
             </Field>
-            <Field label="Company">
+            <Field label={labels.secondary}>
               <TextInput value={e.company} onChange={(ev) => onPatch({ company: ev.target.value })} />
             </Field>
           </div>

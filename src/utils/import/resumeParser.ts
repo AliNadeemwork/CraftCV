@@ -274,14 +274,8 @@ function buildSection(def: (typeof HEADINGS)[number], rawLines: string[]): Secti
 
   if (ENTRY_KINDS.has(def.kind)) {
     const entries = parseEntries(lines);
-    // Courses/Organisations map to a Custom section until dedicated kinds exist.
     if (def.kind === 'courses' || def.kind === 'organisations') {
-      const simple: SimpleEntry[] = entries.map((e) => ({
-        id: uid('e'),
-        title: [e.title, e.company].filter(Boolean).join(' — '),
-        description: stripTags(e.description),
-      }));
-      return { ...base, kind: 'custom', entries: simple } as Section;
+      return { ...base, kind: def.kind, entries } as Section;
     }
     if (def.kind === 'education') {
       const edu: EducationEntry[] = entries.map((e) => ({
@@ -453,9 +447,6 @@ function mapLanguageLevel(raw: string): import('../../types/resume').LanguageLev
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-function stripTags(s: string): string {
-  return s.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 
 export { SINGLE_DATE_RE };

@@ -411,6 +411,8 @@ function SimpleBody({ entries, ctx }: { entries: SimpleEntry[]; ctx: RenderConte
 export function renderEntry(section: Section, index: number, ctx: RenderContext): ReactNode {
   switch (section.kind) {
     case 'experience':
+    case 'courses':
+    case 'organisations':
       return <ExperienceRow e={section.entries[index]} ctx={ctx} />;
     case 'education':
       return <EducationRow e={section.entries[index]} ctx={ctx} />;

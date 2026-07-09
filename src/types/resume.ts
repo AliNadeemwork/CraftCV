@@ -13,6 +13,8 @@ export type SectionKind =
   | 'languages'
   | 'projects'
   | 'certificates'
+  | 'courses'
+  | 'organisations'
   | 'interests'
   | 'awards'
   | 'publications'
@@ -156,6 +158,15 @@ export interface CertificatesSection extends BaseSection {
   kind: 'certificates';
   entries: CertificateEntry[];
 }
+/** Courses & Organisations reuse the experience entry shape (title/subtitle/date/desc). */
+export interface CoursesSection extends BaseSection {
+  kind: 'courses';
+  entries: ExperienceEntry[];
+}
+export interface OrganisationsSection extends BaseSection {
+  kind: 'organisations';
+  entries: ExperienceEntry[];
+}
 export interface SimpleListSection extends BaseSection {
   kind: 'interests' | 'awards' | 'publications' | 'references' | 'custom';
   entries: SimpleEntry[];
@@ -169,6 +180,8 @@ export type Section =
   | LanguagesSection
   | ProjectsSection
   | CertificatesSection
+  | CoursesSection
+  | OrganisationsSection
   | SimpleListSection;
 
 // --- Design ----------------------------------------------------------------
