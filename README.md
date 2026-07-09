@@ -24,13 +24,14 @@ Vercel (or any static host) and own your data.
 - **Split-screen editor** — form panels on the left, a true-to-print A4/US-Letter preview on the right that updates as you type. On mobile, tab between Edit and Preview.
 - **Six original templates** — *Aria* (classic single column), *Meridian* (left sidebar), *Atlas* (right sidebar), *Beacon* (header banner), *Quill* (compact), and *Folio* (serif editorial).
 - **Drag-and-drop** — reorder sections *and* entries within a section (dnd-kit, keyboard-accessible).
-- **Rich section set** — Profile, Experience, Education, Skills (with optional level dots and grouping), Languages, Projects, Certificates, Interests, Awards, Publications, References, and free-form Custom sections. Any section can be hidden or renamed.
+- **Rich section set** — Profile, Experience, Education, Skills (with optional level indicators and grouping), Languages, Projects, Certificates, **Courses**, **Organisations**, Interests, Awards, Publications, References, and free-form Custom sections. Any section can be hidden or renamed.
+- **Per-entry controls** — hide/show an individual entry without deleting it, and duplicate any entry.
 - **Rich text** — bold, italic, underline, links, and bullet lists in descriptions.
-- **Design customizer** — accent colour (presets + custom hex), 8 fonts (incl. serif options), font size, line height, page margins, section spacing, photo on/off + round/square, page size (A4 / Letter), and date format.
+- **Design customizer (identity-safe)** — accent colour (presets + custom hex), 8 fonts + optional separate name font, font size, line height, page margins, section spacing; skill style (dots / bars / pills / text); heading case + style; entry date position; contact-icon toggle; photo on/off, shape (round/rounded/square), size and border; column-layout override; page footer (page numbers / name / email); page size (A4 / Letter); and several date formats. Every control defaults to the current look.
 - **ATS-friendly PDF export** — uses the browser's print engine, so the PDF is real, selectable text (not a rasterised image) with clean page breaks that never split an entry awkwardly.
 - **Auto-save** — every change is persisted instantly, with a subtle "Saved" indicator.
-- **JSON backup** — export a résumé to a `.json` file and re-import it anytime.
-- **Text import** — paste the plain text of an existing résumé and CraftCV splits it into sections heuristically.
+- **JSON + plain-text export** — download a résumé as a `.json` backup (re-importable) or a `.txt` file.
+- **Résumé import** — import an existing **PDF or DOCX** (parsed entirely client-side, no upload) or paste plain text. A review screen shows the parsed sections mapped to CraftCV's schema — editable, with a raw-text panel — so nothing imports without your confirmation. Scanned/image-only PDFs are detected and you're pointed to paste-text import (no OCR).
 - **Cover letter builder** — a matching cover letter that inherits the résumé's template and colours, with its own PDF export.
 - **Multi-language & RTL** — rename any section label (e.g. *Experience → Berufserfahrung*) and switch the document to a right-to-left language.
 - **Dark mode** — for the editor UI. The résumé paper always stays white.
@@ -39,8 +40,9 @@ Vercel (or any static host) and own your data.
 ## Tech stack
 
 Vite · React 18 · TypeScript (strict) · Tailwind CSS · Zustand (+ persist) ·
-dnd-kit · react-router-dom · lucide-react · native `window.print()` with dedicated
-print CSS for PDF export.
+dnd-kit · react-router-dom · lucide-react · pdfjs-dist + mammoth (client-side
+PDF/DOCX import, lazy-loaded) · native `window.print()` with dedicated print CSS
+for PDF export.
 
 ## Local development
 
