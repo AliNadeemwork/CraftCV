@@ -13,7 +13,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Plus, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, Eye, EyeOff, Copy } from 'lucide-react';
 import { useState } from 'react';
 import type {
   CertificateEntry,
@@ -29,6 +29,7 @@ import type {
 } from '../../types/resume';
 import { useResumeStore } from '../../store/resumeStore';
 import { createEntry } from '../../utils/factories';
+import { uid } from '../../utils/id';
 import { Button, Field, Select, TextInput, Toggle } from '../ui/primitives';
 import RichTextEditor from '../ui/RichTextEditor';
 import DateRangeEditor from './DateRangeEditor';
@@ -65,6 +66,16 @@ export default function SectionBody({ resumeId, section }: { resumeId: string; s
   const removeEntry = (id: string) => setEntries(entries.filter((e) => e.id !== id));
   const patchEntry = (id: string, patch: Record<string, unknown>) =>
     setEntries(entries.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  const duplicateEntry = (id: string) => {
+    const idx = entries.findIndex((e) => e.id === id);
+    if (idx < 0) return;
+    const copy = { ...structuredClone(entries[idx]), id: uid('e') };
+    const next = [...entries];
+    next.splice(idx + 1, 0, copy);
+    setEntries(next);
+  };
+  const toggleHidden = (id: string) =>
+    setEntries(entries.map((e) => (e.id === id ? { ...e, hidden: !(e as { hidden?: boolean }).hidden } : e)));
 
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
@@ -105,6 +116,8 @@ export default function SectionBody({ resumeId, section }: { resumeId: string; s
                     entry={entry}
                     onRemove={() => removeEntry(entry.id)}
                     onPatch={(patch) => patchEntry(entry.id, patch)}
+                    onDuplicate={() => duplicateEntry(entry.id)}
+                    onToggleHidden={() => toggleHidden(entry.id)}
                     languageLevels={LANGUAGE_LEVELS}
                   />
                 )}
@@ -132,13 +145,17 @@ function EntryCard({
   entry,
   onRemove,
   onPatch,
+  onDuplicate,
+  onToggleHidden,
   languageLevels,
 }: {
   handle: React.ReactNode;
   section: Section;
-  entry: { id: string };
+  entry: { id: string; hidden?: boolean };
   onRemove: () => void;
   onPatch: (patch: Record<string, unknown>) => void;
+  onDuplicate: () => void;
+  onToggleHidden: () => void;
   languageLevels: LanguageLevel[];
 }) {
   // Compact entries (skills, languages) render inline; rich entries collapse.
@@ -146,10 +163,13 @@ function EntryCard({
   const [open, setOpen] = useState(false);
 
   const header = summarize(section, entry);
+  const hidden = !!entry.hidden;
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white dark:border-white/10 dark:bg-neutral-800/60">
-      <div className="flex items-center gap-1 px-1.5 py-1.5">
+    <div
+      className={`rounded-lg border bg-white dark:bg-neutral-800/60 ${hidden ? 'border-dashed border-black/15 dark:border-white/15' : 'border-black/10 dark:border-white/10'}`}
+    >
+      <div className={`flex items-center gap-1 px-1.5 py-1.5 ${hidden ? 'opacity-55' : ''}`}>
         {handle}
         {compact ? (
           <CompactFields section={section} entry={entry} onPatch={onPatch} languageLevels={languageLevels} />
@@ -167,6 +187,22 @@ function EntryCard({
             </button>
           </>
         )}
+        <button
+          className="focusable rounded p-1.5 text-ink-soft hover:bg-black/5 dark:hover:bg-white/10"
+          onClick={onToggleHidden}
+          aria-label={hidden ? 'Show in resume' : 'Hide from resume'}
+          title={hidden ? 'Hidden — click to show' : 'Hide from resume'}
+        >
+          {hidden ? <EyeOff size={15} /> : <Eye size={15} />}
+        </button>
+        <button
+          className="focusable rounded p-1.5 text-ink-soft hover:bg-black/5 dark:hover:bg-white/10"
+          onClick={onDuplicate}
+          aria-label="Duplicate entry"
+          title="Duplicate entry"
+        >
+          <Copy size={15} />
+        </button>
         <button
           className="focusable rounded p-1.5 text-ink-soft hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
           onClick={onRemove}
@@ -187,7 +223,9 @@ function EntryCard({
 
 function summarize(section: Section, entry: { id: string }): string {
   switch (section.kind) {
-    case 'experience': {
+    case 'experience':
+    case 'courses':
+    case 'organisations': {
       const e = entry as ExperienceEntry;
       return [e.title, e.company].filter(Boolean).join(' · ');
     }
@@ -282,15 +320,23 @@ function RichEntryFields({
   onPatch: (patch: Record<string, unknown>) => void;
 }) {
   switch (section.kind) {
-    case 'experience': {
+    case 'experience':
+    case 'courses':
+    case 'organisations': {
       const e = entry as ExperienceEntry;
+      const labels =
+        section.kind === 'courses'
+          ? { primary: 'Course', secondary: 'Provider' }
+          : section.kind === 'organisations'
+            ? { primary: 'Role', secondary: 'Organisation' }
+            : { primary: 'Job title', secondary: 'Company' };
       return (
         <>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Job title">
+            <Field label={labels.primary}>
               <TextInput value={e.title} onChange={(ev) => onPatch({ title: ev.target.value })} />
             </Field>
-            <Field label="Company">
+            <Field label={labels.secondary}>
               <TextInput value={e.company} onChange={(ev) => onPatch({ company: ev.target.value })} />
             </Field>
           </div>

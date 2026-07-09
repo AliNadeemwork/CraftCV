@@ -10,6 +10,7 @@ import type {
   SimpleEntry,
   SkillEntry,
 } from '../../types/resume';
+import type { DatePosition, SkillStyle } from '../../types/resume';
 import type { TitleStyle } from '../templates/templates';
 import { formatRange, formatDateValue } from '../../utils/date';
 import { isRichTextEmpty } from '../../utils/sanitize';
@@ -20,6 +21,8 @@ export interface RenderContext {
   headingCase: 'normal' | 'upper';
   titleStyle: TitleStyle;
   onAccent: boolean; // rendered on a solid accent sidebar → light text
+  skillStyle: SkillStyle;
+  datePosition: DatePosition;
 }
 
 const muted = (onAccent: boolean) => (onAccent ? 'rgba(255,255,255,0.82)' : '#555');
@@ -122,6 +125,8 @@ export function SectionHeading({
           {label}
         </h3>
       );
+    case 'plain':
+      return <h3 style={common}>{label}</h3>;
   }
 }
 
@@ -138,6 +143,21 @@ function EntryHead({
   right?: string;
   ctx: RenderContext;
 }): ReactNode {
+  const below = ctx.datePosition === 'below';
+  const dateEl = right ? (
+    <div
+      style={{
+        whiteSpace: 'nowrap',
+        color: muted(ctx.onAccent),
+        fontSize: '0.9em',
+        textAlign: below ? 'left' : 'right',
+        marginTop: below ? '0.05em' : 0,
+      }}
+    >
+      {right}
+    </div>
+  ) : null;
+
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75em' }}>
       <div style={{ minWidth: 0 }}>
@@ -147,19 +167,9 @@ function EntryHead({
             {secondary}
           </div>
         )}
+        {below && dateEl}
       </div>
-      {right && (
-        <div
-          style={{
-            whiteSpace: 'nowrap',
-            color: muted(ctx.onAccent),
-            fontSize: '0.9em',
-            textAlign: 'right',
-          }}
-        >
-          {right}
-        </div>
-      )}
+      {!below && dateEl}
     </div>
   );
 }
@@ -249,6 +259,34 @@ function LevelDots({ level, ctx }: { level: number; ctx: RenderContext }): React
   );
 }
 
+function LevelBar({ level, ctx }: { level: number; ctx: RenderContext }): ReactNode {
+  const on = ctx.onAccent ? '#fff' : ctx.accent;
+  const off = ctx.onAccent ? 'rgba(255,255,255,0.28)' : '#e2ddd5';
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        width: 52,
+        height: 4,
+        borderRadius: 999,
+        background: off,
+        position: 'relative',
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: `${(Math.min(5, Math.max(0, level)) / 5) * 100}%`,
+          background: on,
+          borderRadius: 999,
+        }}
+      />
+    </span>
+  );
+}
+
 function SkillsBody({
   entries,
   showLevels,
@@ -258,13 +296,59 @@ function SkillsBody({
   showLevels: boolean;
   ctx: RenderContext;
 }): ReactNode {
+  const style = ctx.skillStyle;
   // Group by `group`, preserving first-seen order.
   const groups = new Map<string, SkillEntry[]>();
-  for (const s of entries) {
+  for (const s of entries.filter((e) => !e.hidden)) {
     const key = s.group || '';
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(s);
   }
+
+  const renderGroupBody = (items: SkillEntry[]): ReactNode => {
+    if (style === 'text') {
+      return (
+        <span style={{ color: strong(ctx.onAccent) }}>
+          {items.map((s) => s.name).join('  ·  ')}
+        </span>
+      );
+    }
+    if (style === 'pills') {
+      const pillBg = ctx.onAccent ? 'rgba(255,255,255,0.18)' : hexTint(ctx.accent);
+      const pillColor = ctx.onAccent ? '#fff' : '#333';
+      return (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          {items.map((s) => (
+            <span
+              key={s.id}
+              style={{
+                background: pillBg,
+                color: pillColor,
+                borderRadius: 999,
+                padding: '0.1em 0.6em',
+                fontSize: '0.92em',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {s.name}
+            </span>
+          ))}
+        </div>
+      );
+    }
+    // dots | bars → labelled rows with an optional level indicator
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {items.map((s) => (
+          <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5em' }}>
+            <span style={{ color: strong(ctx.onAccent) }}>{s.name}</span>
+            {showLevels && s.level > 0 && (style === 'bars' ? <LevelBar level={s.level} ctx={ctx} /> : <LevelDots level={s.level} ctx={ctx} />)}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5em' }}>
       {[...groups.entries()].map(([group, items]) => (
@@ -274,24 +358,28 @@ function SkillsBody({
               {group}
             </div>
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {items.map((s) => (
-              <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5em' }}>
-                <span style={{ color: strong(ctx.onAccent) }}>{s.name}</span>
-                {showLevels && s.level > 0 && <LevelDots level={s.level} ctx={ctx} />}
-              </div>
-            ))}
-          </div>
+          {renderGroupBody(items)}
         </div>
       ))}
     </div>
   );
 }
 
+/** Light accent tint for skill pills. */
+function hexTint(hex: string): string {
+  const c = hex.replace('#', '');
+  if (c.length !== 6) return '#efe9e2';
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  const mix = (v: number) => Math.round(v + (255 - v) * 0.82);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
 function LanguagesBody({ entries, ctx }: { entries: LanguageEntry[]; ctx: RenderContext }): ReactNode {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {entries.map((l) => (
+      {entries.filter((l) => !l.hidden).map((l) => (
         <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5em' }}>
           <span style={{ color: strong(ctx.onAccent) }}>{l.name}</span>
           <span style={{ color: muted(ctx.onAccent), fontSize: '0.9em' }}>{l.level}</span>
@@ -304,7 +392,7 @@ function LanguagesBody({ entries, ctx }: { entries: LanguageEntry[]; ctx: Render
 function SimpleBody({ entries, ctx }: { entries: SimpleEntry[]; ctx: RenderContext }): ReactNode {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35em' }}>
-      {entries.map((e) => (
+      {entries.filter((e) => !e.hidden).map((e) => (
         <div key={e.id}>
           {e.title && <span style={{ fontWeight: 600, color: strong(ctx.onAccent) }}>{e.title}</span>}
           {e.description && (
@@ -323,6 +411,8 @@ function SimpleBody({ entries, ctx }: { entries: SimpleEntry[]; ctx: RenderConte
 export function renderEntry(section: Section, index: number, ctx: RenderContext): ReactNode {
   switch (section.kind) {
     case 'experience':
+    case 'courses':
+    case 'organisations':
       return <ExperienceRow e={section.entries[index]} ctx={ctx} />;
     case 'education':
       return <EducationRow e={section.entries[index]} ctx={ctx} />;

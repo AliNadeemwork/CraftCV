@@ -6,7 +6,8 @@ export type TitleStyle =
   | 'accentbar' // small accent bar to the left
   | 'caps' // letter-spaced uppercase, thin rule
   | 'serif' // serif heading, hairline rule
-  | 'block'; // filled accent block heading (sidebar)
+  | 'block' // filled accent block heading (sidebar)
+  | 'plain'; // no rule/decoration
 
 export interface TemplateConfig {
   id: TemplateId;

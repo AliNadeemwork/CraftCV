@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type { PersonalInfo, Resume, Section } from '../../types/resume';
-import type { TemplateConfig } from '../templates/templates';
+import type { FontFamilyId, PersonalInfo, PhotoShape, Resume, Section } from '../../types/resume';
+import type { Layout, TemplateConfig, TitleStyle } from '../templates/templates';
+import { fontStack } from '../../utils/design';
 import type { RenderContext } from './sectionRenderers';
 import {
   SectionHeading,
@@ -18,12 +19,12 @@ export interface Block {
   spacingBefore?: number;
 }
 
-const ENTRY_KINDS = new Set(['experience', 'education', 'projects', 'certificates']);
+const ENTRY_KINDS = new Set(['experience', 'education', 'projects', 'certificates', 'courses', 'organisations']);
 
-function ContactLine({ p, ctx }: { p: PersonalInfo; ctx: RenderContext }): ReactNode {
+function ContactLine({ p, ctx, icons }: { p: PersonalInfo; ctx: RenderContext; icons: boolean }): ReactNode {
   const color = ctx.onAccent ? 'rgba(255,255,255,0.9)' : '#555';
   const items: { icon: ReactNode; text: string }[] = [];
-  const ico = (I: typeof Mail) => <I size={11} style={{ flexShrink: 0 }} />;
+  const ico = (I: typeof Mail) => (icons ? <I size={11} style={{ flexShrink: 0 }} /> : null);
   if (p.email) items.push({ icon: ico(Mail), text: p.email });
   if (p.phone) items.push({ icon: ico(Phone), text: p.phone });
   if (p.location) items.push({ icon: ico(MapPin), text: p.location });
@@ -52,27 +53,29 @@ function ContactLine({ p, ctx }: { p: PersonalInfo; ctx: RenderContext }): React
   );
 }
 
-function Photo({
-  p,
-  ctx,
-}: {
-  p: PersonalInfo;
-  ctx: RenderContext & { photoShape: 'round' | 'square' };
-}): ReactNode {
+interface HeaderExtras {
+  photoShape: PhotoShape;
+  showPhoto: boolean;
+  photoSize: number;
+  photoBorder: boolean;
+  contactIcons: boolean;
+  nameFont: string | null;
+}
+
+function Photo({ p, ctx }: { p: PersonalInfo; ctx: RenderContext & HeaderExtras }): ReactNode {
   if (!p.photo) return null;
-  const size = 74;
+  const size = ctx.photoSize;
+  const radius = ctx.photoShape === 'round' ? '50%' : ctx.photoShape === 'rounded' ? 10 : 0;
+  const border = ctx.photoBorder
+    ? `2px solid ${ctx.onAccent ? 'rgba(255,255,255,0.7)' : ctx.accent}`
+    : ctx.onAccent
+      ? '2px solid rgba(255,255,255,0.6)'
+      : 'none';
   return (
     <img
       src={p.photo}
       alt=""
-      style={{
-        width: size,
-        height: size,
-        objectFit: 'cover',
-        borderRadius: ctx.photoShape === 'round' ? '50%' : 8,
-        flexShrink: 0,
-        border: ctx.onAccent ? '2px solid rgba(255,255,255,0.6)' : 'none',
-      }}
+      style={{ width: size, height: size, objectFit: 'cover', borderRadius: radius, flexShrink: 0, border }}
     />
   );
 }
@@ -84,7 +87,7 @@ function Header({
   accent,
 }: {
   p: PersonalInfo;
-  ctx: RenderContext & { photoShape: 'round' | 'square'; showPhoto: boolean };
+  ctx: RenderContext & HeaderExtras;
   banner: boolean;
   accent: string;
 }): ReactNode {
@@ -93,6 +96,7 @@ function Header({
     fontWeight: 700,
     lineHeight: 1.1,
     color: banner ? '#fff' : ctx.onAccent ? '#fff' : '#161616',
+    fontFamily: ctx.nameFont ?? undefined,
   };
   const titleStyle: CSSProperties = {
     fontSize: '1.05em',
@@ -107,7 +111,7 @@ function Header({
       <div style={{ minWidth: 0 }}>
         <div style={nameStyle}>{p.name || 'Your Name'}</div>
         {p.jobTitle && <div style={titleStyle}>{p.jobTitle}</div>}
-        <ContactLine p={p} ctx={{ ...ctx, onAccent: banner || ctx.onAccent }} />
+        <ContactLine p={p} ctx={{ ...ctx, onAccent: banner || ctx.onAccent }} icons={ctx.contactIcons} />
       </div>
     </div>
   );
@@ -137,7 +141,31 @@ interface BuildArgs {
   ctxBase: Omit<RenderContext, 'titleStyle' | 'onAccent'>;
   sectionSpacing: number;
   showPhoto: boolean;
-  photoShape: 'round' | 'square';
+  photoShape: PhotoShape;
+  photoSize: number;
+  photoBorder: boolean;
+  contactIcons: boolean;
+  nameFont: FontFamilyId | null;
+  /** Effective column layout (design override already resolved). */
+  layout: Layout;
+  /** Optional heading-style override; undefined/'auto' keeps the template's. */
+  headingStyle?: 'auto' | 'underline' | 'bar' | 'plain';
+}
+
+function resolveTitleStyle(
+  override: BuildArgs['headingStyle'],
+  fallback: TitleStyle,
+): TitleStyle {
+  switch (override) {
+    case 'underline':
+      return 'underline';
+    case 'bar':
+      return 'accentbar';
+    case 'plain':
+      return 'plain';
+    default:
+      return fallback;
+  }
 }
 
 function sectionBlocks(
@@ -153,14 +181,18 @@ function sectionBlocks(
   };
 
   if (ENTRY_KINDS.has(section.kind)) {
-    const entries = (section as { entries: { id: string }[] }).entries;
-    if (!entries.length) return []; // hide empty sections entirely
+    const allEntries = (section as { entries: { id: string; hidden?: boolean }[] }).entries;
+    // Entries flagged hidden are kept in data but excluded from the output.
+    const visibleIdx = allEntries
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => !e.hidden);
+    if (!visibleIdx.length) return []; // hide empty/all-hidden sections entirely
     const blocks: Block[] = [heading];
-    entries.forEach((entry, i) => {
+    visibleIdx.forEach(({ i }, pos) => {
       blocks.push({
-        key: `${section.id}-${entry.id}`,
+        key: `${section.id}-${allEntries[i].id}`,
         node: renderEntry(section, i, ctx),
-        spacingBefore: i === 0 ? 4 : 9,
+        spacingBefore: pos === 0 ? 4 : 9,
         keepWithNext: false,
       });
     });
@@ -190,33 +222,50 @@ export interface TrackSet {
 }
 
 export function buildTracks(args: BuildArgs): TrackSet {
-  const { resume, template, accent, ctxBase, sectionSpacing, showPhoto, photoShape } = args;
+  const { resume, template, accent, ctxBase, sectionSpacing, showPhoto, photoShape, photoSize, photoBorder, contactIcons, nameFont, layout } = args;
   const visible = resume.sections.filter((s) => s.visible);
 
-  const mainCtx: RenderContext = { ...ctxBase, titleStyle: template.mainTitleStyle, onAccent: false };
+  const mainCtx: RenderContext = {
+    ...ctxBase,
+    titleStyle: resolveTitleStyle(args.headingStyle, template.mainTitleStyle),
+    onAccent: false,
+  };
   const sideOnAccent = template.sidebarFill === 'solid';
   const sideCtx: RenderContext = {
     ...ctxBase,
-    titleStyle: template.sidebarTitleStyle,
+    titleStyle: resolveTitleStyle(args.headingStyle, template.sidebarTitleStyle),
     onAccent: sideOnAccent,
   };
 
-  const headerCtx = { ...mainCtx, photoShape, showPhoto };
+  const headerCtx = {
+    ...mainCtx,
+    photoShape,
+    showPhoto,
+    photoSize,
+    photoBorder,
+    contactIcons,
+    nameFont: nameFont ? fontStack(nameFont) : null,
+  };
   const header: Block = {
     key: 'header',
     node: (
       <Header
         p={resume.personalInfo}
         ctx={headerCtx}
-        banner={template.layout === 'banner'}
+        banner={layout === 'banner'}
         accent={accent}
       />
     ),
     spacingBefore: 0,
   };
 
-  if (template.layout === 'left' || template.layout === 'right') {
-    const sidebarKinds = new Set(template.sidebarKinds);
+  if (layout === 'left' || layout === 'right') {
+    // When a single-column template is forced into two columns, fall back to a
+    // sensible default set of sidebar section kinds.
+    const kinds = template.sidebarKinds.length
+      ? template.sidebarKinds
+      : (['skills', 'languages', 'interests', 'certificates'] as Section['kind'][]);
+    const sidebarKinds = new Set(kinds);
     const mainSections = visible.filter((s) => !sidebarKinds.has(s.kind));
     const sideSections = visible.filter((s) => sidebarKinds.has(s.kind));
 

@@ -13,6 +13,8 @@ export type SectionKind =
   | 'languages'
   | 'projects'
   | 'certificates'
+  | 'courses'
+  | 'organisations'
   | 'interests'
   | 'awards'
   | 'publications'
@@ -54,6 +56,8 @@ export interface ExperienceEntry {
   date: DateRange;
   /** HTML string produced by the rich-text editor (sanitised subset). */
   description: string;
+  /** When true the entry is kept but excluded from the rendered resume/PDF. */
+  hidden?: boolean;
 }
 
 export interface EducationEntry {
@@ -63,6 +67,7 @@ export interface EducationEntry {
   location: string;
   date: DateRange;
   description: string;
+  hidden?: boolean;
 }
 
 export type SkillLevel = 0 | 1 | 2 | 3 | 4 | 5;
@@ -73,6 +78,7 @@ export interface SkillEntry {
   /** 0 means "no level shown". 1-5 renders a level indicator. */
   level: SkillLevel;
   group: string;
+  hidden?: boolean;
 }
 
 export type LanguageLevel =
@@ -86,6 +92,7 @@ export interface LanguageEntry {
   id: string;
   name: string;
   level: LanguageLevel;
+  hidden?: boolean;
 }
 
 export interface ProjectEntry {
@@ -94,6 +101,7 @@ export interface ProjectEntry {
   link: string;
   date: DateRange;
   description: string;
+  hidden?: boolean;
 }
 
 export interface CertificateEntry {
@@ -102,12 +110,14 @@ export interface CertificateEntry {
   issuer: string;
   date: string;
   link: string;
+  hidden?: boolean;
 }
 
 export interface SimpleEntry {
   id: string;
   title: string;
   description: string;
+  hidden?: boolean;
 }
 
 // --- Sections (discriminated union) ---------------------------------------
@@ -148,6 +158,15 @@ export interface CertificatesSection extends BaseSection {
   kind: 'certificates';
   entries: CertificateEntry[];
 }
+/** Courses & Organisations reuse the experience entry shape (title/subtitle/date/desc). */
+export interface CoursesSection extends BaseSection {
+  kind: 'courses';
+  entries: ExperienceEntry[];
+}
+export interface OrganisationsSection extends BaseSection {
+  kind: 'organisations';
+  entries: ExperienceEntry[];
+}
 export interface SimpleListSection extends BaseSection {
   kind: 'interests' | 'awards' | 'publications' | 'references' | 'custom';
   entries: SimpleEntry[];
@@ -161,6 +180,8 @@ export type Section =
   | LanguagesSection
   | ProjectsSection
   | CertificatesSection
+  | CoursesSection
+  | OrganisationsSection
   | SimpleListSection;
 
 // --- Design ----------------------------------------------------------------
@@ -174,8 +195,8 @@ export type TemplateId =
   | 'folio'; // serif editorial
 
 export type PageSize = 'A4' | 'Letter';
-export type DateFormat = 'MMM YYYY' | 'MM/YYYY' | 'YYYY' | 'MMMM YYYY';
-export type PhotoShape = 'round' | 'square';
+export type DateFormat = 'MMM YYYY' | 'MM/YYYY' | 'YYYY' | 'MMMM YYYY' | 'MM.YYYY' | "MMM 'YY";
+export type PhotoShape = 'round' | 'square' | 'rounded';
 export type FontFamilyId =
   | 'Inter'
   | 'Roboto'
@@ -186,10 +207,29 @@ export type FontFamilyId =
   | 'Merriweather'
   | 'Georgia';
 
+/** Skill list rendering style. 'dots' is the original CraftCV look. */
+export type SkillStyle = 'dots' | 'bars' | 'pills' | 'text';
+/** Heading letter-casing. 'auto' defers to the template's own choice. */
+export type HeadingCase = 'auto' | 'normal' | 'upper';
+/** Heading treatment override. 'auto' defers to the template. */
+export type HeadingStyleOverride = 'auto' | 'underline' | 'bar' | 'plain';
+/** Where an entry's date sits. 'right' is the original right-aligned look. */
+export type DatePosition = 'right' | 'below';
+/** Column layout override. 'auto' defers to the template. */
+export type LayoutOverride = 'auto' | 'one' | 'two-left' | 'two-right';
+
+export interface FooterOptions {
+  pageNumbers: boolean;
+  name: boolean;
+  email: boolean;
+}
+
 export interface Design {
   template: TemplateId;
   accent: string; // hex
   fontFamily: FontFamilyId;
+  /** Optional separate font for the name/header. null → use body font. */
+  nameFontFamily?: FontFamilyId | null;
   /** Multiplier applied to each template's base font size (0.85 – 1.2). */
   fontScale: number;
   lineHeight: number; // 1.1 – 1.8
@@ -201,6 +241,19 @@ export interface Design {
   dateFormat: DateFormat;
   showPhoto: boolean;
   photoShape: PhotoShape;
+  /** Photo diameter/size in px. Undefined → template default (74). */
+  photoSize?: number;
+  photoBorder?: boolean;
+
+  // --- extended, identity-safe controls (all optional; undefined = current look) ---
+  skillStyle?: SkillStyle;
+  headingCase?: HeadingCase;
+  headingStyle?: HeadingStyleOverride;
+  datePosition?: DatePosition;
+  /** Show icons next to header contact details. Default true. */
+  contactIcons?: boolean;
+  layout?: LayoutOverride;
+  footer?: FooterOptions;
 }
 
 // --- Meta ------------------------------------------------------------------

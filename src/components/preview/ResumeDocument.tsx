@@ -39,8 +39,22 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
   const { width: pageW, height: pageH } = metrics.page;
   const margin = metrics.marginPx;
 
-  const twoCol = template.layout === 'left' || template.layout === 'right';
-  const sidebarW = twoCol ? Math.round(pageW * template.sidebarWidth) : 0;
+  // Resolve the effective layout: a per-resume override wins over the template's.
+  const layoutOverride = resume.design.layout ?? 'auto';
+  const effectiveLayout =
+    layoutOverride === 'auto'
+      ? template.layout
+      : layoutOverride === 'one'
+        ? template.layout === 'banner'
+          ? 'banner'
+          : 'single'
+        : layoutOverride === 'two-left'
+          ? 'left'
+          : 'right';
+
+  const twoCol = effectiveLayout === 'left' || effectiveLayout === 'right';
+  const sidebarWidthFrac = template.sidebarWidth || 0.33;
+  const sidebarW = twoCol ? Math.round(pageW * sidebarWidthFrac) : 0;
   const mainOuterW = twoCol ? pageW - sidebarW : pageW;
 
   const mainContentW = mainOuterW - margin * 2;
@@ -56,13 +70,25 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
         ctxBase: {
           accent: resume.design.accent,
           dateFormat: resume.design.dateFormat,
-          headingCase: template.headingCase,
+          // headingCase: 'auto' defers to the template's own casing.
+          headingCase:
+            !resume.design.headingCase || resume.design.headingCase === 'auto'
+              ? template.headingCase
+              : resume.design.headingCase,
+          skillStyle: resume.design.skillStyle ?? 'dots',
+          datePosition: resume.design.datePosition ?? 'right',
         },
         sectionSpacing: resume.design.sectionSpacing,
         showPhoto: resume.design.showPhoto,
         photoShape: resume.design.photoShape,
+        photoSize: resume.design.photoSize ?? 74,
+        photoBorder: resume.design.photoBorder ?? false,
+        contactIcons: resume.design.contactIcons ?? true,
+        nameFont: resume.design.nameFontFamily ?? null,
+        layout: effectiveLayout,
+        headingStyle: resume.design.headingStyle,
       }),
-    [resume, template],
+    [resume, template, effectiveLayout],
   );
 
   const mainRefs = useRef<HTMLElement[]>([]);
@@ -133,6 +159,39 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
     zIndex: -1,
   };
 
+  const footer = resume.design.footer;
+  const showFooter = !!footer && (footer.pageNumbers || footer.name || footer.email);
+  const footerEl = (pageIndex: number) =>
+    showFooter && footer ? (
+      <div
+        className="no-print-nothing"
+        style={{
+          position: 'absolute',
+          left: margin,
+          right: margin,
+          bottom: Math.max(6, Math.round(margin / 2)),
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: '1em',
+          fontSize: '0.7em',
+          color: '#8a8a8a',
+          borderTop: '1px solid #ececec',
+          paddingTop: 4,
+        }}
+      >
+        <span>
+          {[footer.name ? resume.personalInfo.name : '', footer.email ? resume.personalInfo.email : '']
+            .filter(Boolean)
+            .join('  ·  ')}
+        </span>
+        {footer.pageNumbers && (
+          <span>
+            {pageIndex + 1} / {pageCount}
+          </span>
+        )}
+      </div>
+    ) : null;
+
   const pages = Array.from({ length: pageCount }, (_, p) => {
     const mainIdx = layout.main[p] ?? [];
     const sideIdx = tracks.sidebar ? layout.side[p] ?? [] : [];
@@ -168,7 +227,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
           className="cv-page"
           style={{ width: pageW, height: pageH, display: 'flex' }}
         >
-          {template.layout === 'left' ? (
+          {effectiveLayout === 'left' ? (
             <>
               {sidebarEl}
               {mainEl}
@@ -179,6 +238,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
               {sidebarEl}
             </>
           )}
+          {footerEl(p)}
         </div>
       );
     }
@@ -190,6 +250,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
         style={{ width: pageW, height: pageH, padding: margin, boxSizing: 'border-box' }}
       >
         {renderBlocks(tracks.main, mainIdx)}
+        {footerEl(p)}
       </div>
     );
   });

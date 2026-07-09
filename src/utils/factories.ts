@@ -33,6 +33,8 @@ export const DEFAULT_SECTION_TITLE: Record<SectionKind, string> = {
   languages: 'Languages',
   projects: 'Projects',
   certificates: 'Certificates',
+  courses: 'Courses',
+  organisations: 'Organisations',
   interests: 'Interests',
   awards: 'Awards',
   publications: 'Publications',
@@ -61,6 +63,9 @@ export function createSection(kind: SectionKind, title?: string): Section {
       return { ...base, kind, entries: [] };
     case 'certificates':
       return { ...base, kind, entries: [] };
+    case 'courses':
+    case 'organisations':
+      return { ...base, kind, entries: [] };
     case 'interests':
     case 'awards':
     case 'publications':
@@ -74,6 +79,8 @@ export function createSection(kind: SectionKind, title?: string): Section {
 export function createEntry(kind: SectionKind): unknown {
   switch (kind) {
     case 'experience':
+    case 'courses':
+    case 'organisations':
       return {
         id: uid('e'),
         title: '',

@@ -9,8 +9,35 @@ const DATE_FORMATS: { id: DateFormat; label: string }[] = [
   { id: 'MMM YYYY', label: 'Jan 2026' },
   { id: 'MMMM YYYY', label: 'January 2026' },
   { id: 'MM/YYYY', label: '01/2026' },
+  { id: 'MM.YYYY', label: '01.2026' },
+  { id: "MMM 'YY", label: "Jan '26" },
   { id: 'YYYY', label: '2026' },
 ];
+
+/** Small segmented control matching the existing page-size/photo toggles. */
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { id: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          className={`focusable px-2.5 py-1 text-xs ${value === o.id ? 'bg-brandaccent text-white' : 'text-ink-soft'}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -185,22 +212,137 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
           </div>
         </Row>
         {d.showPhoto && (
-          <Row label="Photo shape">
-            <div className="flex overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
-              {[['Round', 'round'], ['Square', 'square']].map(([label, val]) => (
-                <button
-                  key={val}
-                  onClick={() => set({ photoShape: val as 'round' | 'square' })}
-                  className={`focusable px-3 py-1 text-xs ${
-                    d.photoShape === val ? 'bg-brandaccent text-white' : 'text-ink-soft'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </Row>
+          <>
+            <Row label="Photo shape">
+              <Segmented
+                value={d.photoShape}
+                onChange={(photoShape) => set({ photoShape })}
+                options={[
+                  { id: 'round', label: 'Round' },
+                  { id: 'rounded', label: 'Rounded' },
+                  { id: 'square', label: 'Square' },
+                ]}
+              />
+            </Row>
+            <Row label="Photo size">
+              <Slider value={d.photoSize ?? 74} min={48} max={110} step={2} onChange={(photoSize) => set({ photoSize })} format={(v) => `${v}px`} />
+            </Row>
+            <Row label="Photo border">
+              <Segmented
+                value={d.photoBorder ? 'on' : 'off'}
+                onChange={(v) => set({ photoBorder: v === 'on' })}
+                options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]}
+              />
+            </Row>
+          </>
         )}
+      </section>
+
+      {/* Layout & content styling */}
+      <section className="rounded-xl border border-black/5 bg-canvas/40 px-3 py-2 dark:border-white/5 dark:bg-white/[0.02]">
+        <Row label="Column layout">
+          <Segmented
+            value={d.layout ?? 'auto'}
+            onChange={(layout) => set({ layout })}
+            options={[
+              { id: 'auto', label: 'Template' },
+              { id: 'one', label: 'One' },
+              { id: 'two-left', label: 'Left' },
+              { id: 'two-right', label: 'Right' },
+            ]}
+          />
+        </Row>
+        <Row label="Skill style">
+          <Segmented
+            value={d.skillStyle ?? 'dots'}
+            onChange={(skillStyle) => set({ skillStyle })}
+            options={[
+              { id: 'dots', label: 'Dots' },
+              { id: 'bars', label: 'Bars' },
+              { id: 'pills', label: 'Pills' },
+              { id: 'text', label: 'Text' },
+            ]}
+          />
+        </Row>
+        <Row label="Heading case">
+          <Segmented
+            value={d.headingCase ?? 'auto'}
+            onChange={(headingCase) => set({ headingCase })}
+            options={[
+              { id: 'auto', label: 'Auto' },
+              { id: 'normal', label: 'Aa' },
+              { id: 'upper', label: 'AA' },
+            ]}
+          />
+        </Row>
+        <Row label="Heading style">
+          <Segmented
+            value={d.headingStyle ?? 'auto'}
+            onChange={(headingStyle) => set({ headingStyle })}
+            options={[
+              { id: 'auto', label: 'Auto' },
+              { id: 'underline', label: 'Rule' },
+              { id: 'bar', label: 'Bar' },
+              { id: 'plain', label: 'Plain' },
+            ]}
+          />
+        </Row>
+        <Row label="Entry date">
+          <Segmented
+            value={d.datePosition ?? 'right'}
+            onChange={(datePosition) => set({ datePosition })}
+            options={[
+              { id: 'right', label: 'Right' },
+              { id: 'below', label: 'Below title' },
+            ]}
+          />
+        </Row>
+        <Row label="Contact icons">
+          <Segmented
+            value={(d.contactIcons ?? true) ? 'on' : 'off'}
+            onChange={(v) => set({ contactIcons: v === 'on' })}
+            options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]}
+          />
+        </Row>
+        <Row label="Name font">
+          <Select
+            value={d.nameFontFamily ?? ''}
+            onChange={(e) => set({ nameFontFamily: e.target.value ? (e.target.value as FontFamilyId) : null })}
+            className="w-40"
+          >
+            <option value="">Same as body</option>
+            {FONT_OPTIONS.map((f) => (
+              <option key={f.id} value={f.id}>{f.label}{f.serif ? ' (serif)' : ''}</option>
+            ))}
+          </Select>
+        </Row>
+      </section>
+
+      {/* Footer */}
+      <section className="rounded-xl border border-black/5 bg-canvas/40 px-3 py-2 dark:border-white/5 dark:bg-white/[0.02]">
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Page footer</div>
+        {([
+          ['pageNumbers', 'Page numbers'],
+          ['name', 'Your name'],
+          ['email', 'Email'],
+        ] as const).map(([key, label]) => (
+          <Row key={key} label={label}>
+            <Segmented
+              value={(d.footer?.[key] ?? false) ? 'on' : 'off'}
+              onChange={(v) =>
+                set({
+                  footer: {
+                    pageNumbers: d.footer?.pageNumbers ?? false,
+                    name: d.footer?.name ?? false,
+                    email: d.footer?.email ?? false,
+                    [key]: v === 'on',
+                  },
+                })
+              }
+              options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]}
+            />
+          </Row>
+        ))}
       </section>
 
       <Field label="Section headings are renamable">
