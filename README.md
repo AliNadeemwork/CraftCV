@@ -18,22 +18,21 @@ Made by **Ali Nadeem**
 >
 > This is **Phase 1** of CraftCV: the core builder, importer, and customization
 > are in place and working, but it is early software that hasn't been battle-tested
-> across every browser, résumé layout, or edge case. **Use it at your own risk** —
+> across every browser, resume layout, or edge case. **Use it at your own risk** —
 > always keep your own copy of important résumé content (the JSON / text export is
 > there for exactly this), and expect rough edges. See the [License](#license) for
 > the full no-warranty terms.
 
-CraftCV is a client-side résumé builder. Everything — your résumés, photos, and
+CraftCV is a client-side resume builder. Everything; your resumes, photos, and
 settings — is stored in your browser's `localStorage`. There is no server to send
-your data to, and JSON export/import is the backup story. Deploy it for free on
-Vercel (or any static host) and own your data.
+your data to, and JSON export/import is the backup story. I have alreadydeployed on Vercel so you can use it too.
 
 > The brand name lives in a single constant (`src/config.ts` → `APP_NAME`), so you
 > can rebrand the whole app by changing one line.
 
 ## Features
 
-- **Multiple résumés** — dashboard with live thumbnail previews; create, duplicate, rename, delete.
+- **Multiple resumes** — dashboard with live thumbnail previews; create, duplicate, rename, delete.
 - **Split-screen editor** — form panels on the left, a true-to-print A4/US-Letter preview on the right that updates as you type. On mobile, tab between Edit and Preview.
 - **Six original templates** — *Aria* (classic single column), *Meridian* (left sidebar), *Atlas* (right sidebar), *Beacon* (header banner), *Quill* (compact), and *Folio* (serif editorial).
 - **Drag-and-drop** — reorder sections *and* entries within a section (dnd-kit, keyboard-accessible).
