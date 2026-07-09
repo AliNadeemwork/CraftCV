@@ -26,6 +26,9 @@ export interface ParseResult {
   rawText: string;
 }
 
+/** Marker the PDF extractor uses to pass a right-margin location to the parser. */
+export const LOC_MARK = 'LOC:';
+
 // --- Heading dictionary (English + German) --------------------------------
 
 const HEADINGS: { kind: SectionKind | 'courses' | 'organisations'; title: string; words: string[] }[] = [
@@ -33,7 +36,7 @@ const HEADINGS: { kind: SectionKind | 'courses' | 'organisations'; title: string
   { kind: 'experience', title: 'Professional Experience', words: ['experience', 'work experience', 'professional experience', 'employment', 'employment history', 'work history', 'career history', 'berufserfahrung', 'berufspraxis', 'praxiserfahrung', 'beruflicher werdegang', 'arbeitserfahrung'] },
   { kind: 'education', title: 'Education', words: ['education', 'academic background', 'ausbildung', 'bildung', 'schulbildung', 'akademische ausbildung', 'studium'] },
   { kind: 'skills', title: 'Skills', words: ['skills', 'technical skills', 'core skills', 'key skills', 'competencies', 'kenntnisse', 'fähigkeiten', 'fachkenntnisse', 'kompetenzen', 'faehigkeiten'] },
-  { kind: 'languages', title: 'Languages', words: ['languages', 'sprachen', 'sprachkenntnisse'] },
+  { kind: 'languages', title: 'Languages', words: ['languages', 'language skills', 'language', 'sprachen', 'sprachkenntnisse'] },
   { kind: 'projects', title: 'Projects', words: ['projects', 'selected projects', 'key projects', 'projekte'] },
   { kind: 'certificates', title: 'Certificates', words: ['certificates', 'certifications', 'certification', 'licenses', 'licences', 'zertifikate', 'zertifizierungen', 'bescheinigungen'] },
   { kind: 'courses', title: 'Courses', words: ['courses', 'training', 'trainings', 'kurse', 'weiterbildung', 'weiterbildungen', 'fortbildung'] },
@@ -187,7 +190,12 @@ export function parseResume(rawText: string): ParseResult {
   flush();
 
   if (sections.length) resume.sections = sections;
-  return { resume, detectedHeadings: detected, rawText };
+  // Hide internal LOC markers from the raw-text panel shown to the user.
+  const displayText = rawText
+    .split('\n')
+    .filter((l) => !l.startsWith(LOC_MARK))
+    .join('\n');
+  return { resume, detectedHeadings: detected, rawText: displayText };
 }
 
 function applyHeader(resume: Resume, header: string[]): void {
@@ -225,7 +233,12 @@ function applyHeader(resume: Resume, header: string[]): void {
 }
 
 function buildSection(def: (typeof HEADINGS)[number], rawLines: string[]): Section | null {
-  const lines = rawLines.filter((l) => l.trim().length);
+  // Entry sections consume LOC markers (for per-entry location); all other
+  // section kinds ignore them.
+  const entryLines = rawLines.filter((l) => l.trim().length);
+  const lines = ENTRY_KINDS.has(def.kind)
+    ? entryLines
+    : entryLines.filter((l) => !l.startsWith(LOC_MARK));
   if (!lines.length && def.kind !== 'summary') return null;
   const base = { id: uid('sec'), title: def.title, visible: true };
 
@@ -320,6 +333,7 @@ interface Building {
   trailing: string[];
   bullets: string[];
   sawBullet: boolean;
+  locHint: string;
 }
 
 function parseEntries(lines: string[]): ExperienceEntry[] {
@@ -355,6 +369,9 @@ function parseEntries(lines: string[]): ExperienceEntry[] {
     if (company) lastCompany = company;
     else company = lastCompany; // carry employer across multiple roles
 
+    // A location captured from the right margin wins over any peeled one.
+    if (cur.locHint) location = cur.locHint;
+
     const description = cur.bullets.length
       ? `<ul>${cur.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}</ul>`
       : '';
@@ -362,12 +379,23 @@ function parseEntries(lines: string[]): ExperienceEntry[] {
     cur = null;
   };
 
+  const mkEntry = (role: string, date: DateRange): Building => ({
+    id: uid('e'), role, date, leading: preBuffer, trailing: [], bullets: [], sawBullet: false, locHint: '',
+  });
+
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) continue;
 
+    // Location captured from the right margin by the PDF extractor.
+    if (line.startsWith(LOC_MARK)) {
+      const loc = line.slice(LOC_MARK.length).trim();
+      if (cur && !cur.locHint) cur.locHint = loc;
+      continue;
+    }
+
     if (isBullet(line)) {
-      if (!cur) cur = { id: uid('e'), role: '', date: emptyRange(), leading: preBuffer, trailing: [], bullets: [], sawBullet: false };
+      if (!cur) cur = mkEntry('', emptyRange());
       if (cur.leading === preBuffer) preBuffer = [];
       cur.bullets.push(stripBullet(line));
       cur.sawBullet = true;
@@ -377,7 +405,7 @@ function parseEntries(lines: string[]): ExperienceEntry[] {
     const dr = extractRange(line);
     if (dr) {
       finalize();
-      cur = { id: uid('e'), role: dr.rest, date: dr.range, leading: preBuffer, trailing: [], bullets: [], sawBullet: false };
+      cur = mkEntry(dr.rest, dr.range);
       preBuffer = [];
     } else if (cur && !cur.sawBullet) {
       // Context line immediately after the dated line (institution/company).
