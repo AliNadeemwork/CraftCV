@@ -2,13 +2,26 @@
 
 # CraftCV
 
+### _One CV Away from Your Dream Job_
+
 **A free, open-source, privacy-first résumé builder that runs entirely in your browser.**
 
 No account. No backend. No tracking. Your data never leaves your device.
 
+Made by **Ali Nadeem**
+
 </div>
 
 ---
+
+> ### ⚠️ Phase 1 — early release
+>
+> This is **Phase 1** of CraftCV: the core builder, importer, and customization
+> are in place and working, but it is early software that hasn't been battle-tested
+> across every browser, résumé layout, or edge case. **Use it at your own risk** —
+> always keep your own copy of important résumé content (the JSON / text export is
+> there for exactly this), and expect rough edges. See the [License](#license) for
+> the full no-warranty terms.
 
 CraftCV is a client-side résumé builder. Everything — your résumés, photos, and
 settings — is stored in your browser's `localStorage`. There is no server to send
@@ -118,4 +131,17 @@ component primitives in `src/components/ui`.
 
 ## License
 
-[MIT](./LICENSE)
+Released under the [MIT License](./LICENSE).
+
+**Use at your own risk.** As stated in the license, the software is provided
+"AS IS", without warranty of any kind. This is early Phase 1 software — the
+authors are not liable for any lost data, incorrect résumé output, or other
+issues arising from its use. Always keep your own backup of important content.
+
+---
+
+<div align="center">
+
+_CraftCV — One CV Away from Your Dream Job · Made by Ali Nadeem_
+
+</div>

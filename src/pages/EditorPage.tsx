@@ -14,7 +14,7 @@ import PreviewPane from '../components/preview/PreviewPane';
 import { exportResumePdf } from '../utils/exportPdf';
 import { downloadResumeJson } from '../utils/jsonBackup';
 import { downloadResumeText } from '../utils/textExport';
-import { APP_NAME } from '../config';
+import { APP_NAME, APP_SLOGAN, MADE_BY } from '../config';
 
 type Tab = 'content' | 'design';
 
@@ -146,7 +146,7 @@ export default function EditorPage() {
       </div>
 
       <footer className="no-print px-3 py-1 text-center text-[10px] text-ink-soft/60">
-        {APP_NAME} · your data never leaves this browser
+        {APP_NAME} — {APP_SLOGAN} · Made by {MADE_BY} · your data never leaves this browser
       </footer>
     </div>
   );

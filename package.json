@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "CraftCV — a free, open-source, client-side resume builder. No backend, no account, your data stays in your browser.",
+  "author": "Ali Nadeem",
   "license": "MIT",
   "scripts": {
     "dev": "vite",

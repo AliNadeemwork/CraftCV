@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Copy, Trash2, Pencil, Upload, Sparkles, FileDown, MoreVertical, Moon, Sun, FileUp, Loader2 } from 'lucide-react';
 import { useResumeStore } from '../store/resumeStore';
 import { useUIStore } from '../store/uiStore';
-import { APP_NAME, APP_TAGLINE } from '../config';
+import { APP_NAME, APP_TAGLINE, APP_SLOGAN, MADE_BY } from '../config';
 import Thumbnail from '../components/preview/Thumbnail';
 import { Button } from '../components/ui/primitives';
 import Modal from '../components/ui/Modal';
@@ -188,6 +188,12 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+
+        <footer className="mt-16 border-t border-black/5 pt-6 text-center dark:border-white/5">
+          <div className="text-lg font-bold text-ink dark:text-neutral-100">{APP_NAME}</div>
+          <p className="mt-1 text-sm italic text-ink-soft">“{APP_SLOGAN}”</p>
+          <p className="mt-3 text-xs text-ink-soft/70">Made by {MADE_BY}</p>
+        </footer>
       </main>
 
       <Modal open={!!renaming} onClose={() => setRenaming(null)} title="Rename resume">
