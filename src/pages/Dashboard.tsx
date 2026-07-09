@@ -189,12 +189,16 @@ export default function Dashboard() {
           </div>
         )}
 
-        <footer className="mt-16 border-t border-black/5 pt-6 text-center dark:border-white/5">
-          <div className="text-lg font-bold text-ink dark:text-neutral-100">{APP_NAME}</div>
-          <p className="mt-1 text-sm italic text-ink-soft">“{APP_SLOGAN}”</p>
-          <p className="mt-3 text-xs text-ink-soft/70">Made by {MADE_BY}</p>
-        </footer>
       </main>
+
+      <footer className="mt-8 border-t border-black/5 dark:border-white/5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-4 text-sm">
+          <span className="font-bold text-ink dark:text-neutral-100">{APP_NAME}</span>
+          <span className="hidden flex-1 text-center italic text-ink-soft sm:block">“{APP_SLOGAN}”</span>
+          <span className="text-ink-soft/80">{MADE_BY}</span>
+        </div>
+        <p className="pb-4 text-center text-xs italic text-ink-soft sm:hidden">“{APP_SLOGAN}”</p>
+      </footer>
 
       <Modal open={!!renaming} onClose={() => setRenaming(null)} title="Rename resume">
         {renaming && (

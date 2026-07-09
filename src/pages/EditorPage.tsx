@@ -145,8 +145,10 @@ export default function EditorPage() {
         </div>
       </div>
 
-      <footer className="no-print px-3 py-1 text-center text-[10px] text-ink-soft/60">
-        {APP_NAME} — {APP_SLOGAN} · Made by {MADE_BY} · your data never leaves this browser
+      <footer className="no-print flex items-center justify-between gap-2 px-4 py-1 text-[10px] text-ink-soft/60">
+        <span className="font-semibold">{APP_NAME}</span>
+        <span className="hidden flex-1 text-center italic sm:block">“{APP_SLOGAN}”</span>
+        <span>{MADE_BY}</span>
       </footer>
     </div>
   );
