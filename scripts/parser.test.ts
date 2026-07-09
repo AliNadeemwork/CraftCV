@@ -138,5 +138,51 @@ check('multi edu1 degree', medu && /Masters in Web/.test(medu.entries[0].degree)
 check('multi edu1 institution', medu && /Universität Koblenz/.test(medu.entries[0].institution));
 check('multi edu1 present', medu && medu.entries[0].date.present === true);
 
+// --- Single-date entries (projects with one date, not a range) -------------
+const projText = `PROJECTS
+Multi-Omics Data Integration   2023 - 2024
+- Developed a data pipeline.
+- Utilised Python and R.
+Recommenders System   2023
+- Built a recommender system.
+- Simulated user ratings.`;
+const pr = parseResume(projText);
+const pj = pr.resume.sections.find((s) => s.kind === 'projects') as any;
+check('single-date: two projects (not merged)', pj && pj.entries.length === 2);
+check('single-date: project2 title kept', pj && /Recommenders System/.test(pj.entries[1].name));
+check('single-date: project2 date', pj && pj.entries[1].date.start === '2023');
+check('single-date: project2 bullets not merged into p1', pj && /recommender/i.test(pj.entries[1].description));
+
+// --- Glued heading split (DOCX artefact) -----------------------------------
+const glued = `John Doe
+john@x.com
+PROJECTSMy Cool Project   2022 - 2023
+- Did a thing.
+PROFESSIONAL EXPERIENCEAcme Corp - Engineer   2020 - 2022
+- Built things.`;
+const gr = parseResume(glued);
+check('glued: projects section detected', !!gr.resume.sections.find((s) => s.kind === 'projects'));
+check('glued: experience section detected', !!gr.resume.sections.find((s) => s.kind === 'experience'));
+const gpj = gr.resume.sections.find((s) => s.kind === 'projects') as any;
+check('glued: project title not swallowed', gpj && /My Cool Project/.test(gpj.entries[0].name));
+
+// --- Skills grouping + paren-aware split -----------------------------------
+const skillText = `SKILLS
+Programming: Python (NumPy, Pandas), SQL, C++
+Tools: Git, Docker`;
+const sr = parseResume(skillText);
+const sk2 = sr.resume.sections.find((s) => s.kind === 'skills') as any;
+check('skills: paren kept intact', sk2 && sk2.entries.some((e: any) => e.name === 'Python (NumPy, Pandas)'));
+check('skills: grouped by category', sk2 && sk2.entries.find((e: any) => e.name === 'SQL')?.group === 'Programming');
+check('skills: second group', sk2 && sk2.entries.find((e: any) => e.name === 'Docker')?.group === 'Tools');
+
+// --- Multi-language line ----------------------------------------------------
+const langText = `LANGUAGES
+English — Fluent German — Basic`;
+const lr = parseResume(langText);
+const lg2 = lr.resume.sections.find((s) => s.kind === 'languages') as any;
+check('languages: split into two', lg2 && lg2.entries.length === 2);
+check('languages: english fluent', lg2 && lg2.entries[0].name === 'English' && lg2.entries[0].level === 'Fluent');
+
 console.log(`\nparser tests: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

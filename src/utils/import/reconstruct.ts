@@ -13,13 +13,21 @@ export interface RawItem {
 
 const BULLET_GLYPHS = /[•·▪◦‣]/;
 
-// A light date-range test (kept local so this module has no parser dependency).
+// A light date test (kept local so this module has no parser dependency).
 // The end token may be a month name, a number, or a "present"-style word.
 const MON = 'jan|feb|mar|apr|may|jun|jul|aug|sep|o[ck]t|nov|de[cz]';
 const DATE_RANGE_TEST = new RegExp(
   `(?:${MON}|\\d{1,2}[./]|\\d{4})[^-–—]*[-–—]\\s*(?:present|current|ongoing|heute|jetzt|aktuell|laufend|${MON}|\\d)`,
   'i',
 );
+// A right-margin note that is a lone date ("Dec 23", "2023", "12/2023") also
+// anchors an entry — otherwise a single-dated title merges into the entry above.
+const SINGLE_DATE_NOTE = new RegExp(
+  `^(?:(?:${MON})\\.?\\s*'?\\d{2,4}|\\d{1,2}[./]\\s*'?\\d{2,4}|(?:19|20)\\d{2})$`,
+  'i',
+);
+const isDateNote = (note: string): boolean =>
+  DATE_RANGE_TEST.test(note) || SINGLE_DATE_NOTE.test(note.trim());
 
 /**
  * Reconstruct clean, parser-friendly lines from one page's positioned glyphs.
@@ -90,6 +98,8 @@ export function reconstructPage(items: RawItem[], pageWidth: number): string[] {
     const gap = prevY !== null ? prevY - y : 0;
     prevY = y;
     if (!content && !note) continue;
+    // Drop running headers/footers like "Ali Nadeem   2 / 2" (name + page x/y).
+    if (/^\d+\s*\/\s*\d+$/.test(note)) continue;
     lines.push({ content, note, hasBullet, gap });
   }
 
@@ -107,7 +117,7 @@ export function reconstructPage(items: RawItem[], pageWidth: number): string[] {
   };
 
   for (const ln of lines) {
-    const isDate = DATE_RANGE_TEST.test(ln.note);
+    const isDate = isDateNote(ln.note);
 
     if (ln.hasBullet) {
       out.push('• ' + ln.content);

@@ -40,7 +40,7 @@ const HEADINGS: { kind: SectionKind | 'courses' | 'organisations'; title: string
   { kind: 'projects', title: 'Projects', words: ['projects', 'selected projects', 'key projects', 'projekte'] },
   { kind: 'certificates', title: 'Certificates', words: ['certificates', 'certifications', 'certification', 'licenses', 'licences', 'zertifikate', 'zertifizierungen', 'bescheinigungen'] },
   { kind: 'courses', title: 'Courses', words: ['courses', 'training', 'trainings', 'kurse', 'weiterbildung', 'weiterbildungen', 'fortbildung'] },
-  { kind: 'awards', title: 'Awards', words: ['awards', 'honors', 'honours', 'achievements', 'auszeichnungen', 'ehrungen', 'erfolge', 'preise'] },
+  { kind: 'awards', title: 'Awards', words: ['awards', 'honors', 'honours', 'achievements', 'achievements and awards', 'awards and achievements', 'achievements & awards', 'honors and awards', 'awards & honors', 'auszeichnungen', 'ehrungen', 'erfolge', 'preise'] },
   { kind: 'publications', title: 'Publications', words: ['publications', 'papers', 'publikationen', 'veröffentlichungen', 'veroeffentlichungen'] },
   { kind: 'organisations', title: 'Organisations', words: ['organisations', 'organizations', 'volunteering', 'volunteer', 'voluntary', 'memberships', 'organisationen', 'ehrenamt', 'freiwilligenarbeit', 'mitgliedschaften'] },
   { kind: 'interests', title: 'Interests', words: ['interests', 'hobbies', 'hobbys', 'hobbies and interests', 'interessen', 'hobbys'] },
@@ -52,7 +52,7 @@ const ENTRY_KINDS = new Set(['experience', 'education', 'projects', 'courses', '
 // --- Contact regexes -------------------------------------------------------
 
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
-const PHONE_RE = /(\+?\d[\d\s().\-/]{6,}\d)/;
+const PHONE_RE = /(\+?\d[\d\s().[\]\-/]{6,}\d)/;
 const URL_RE = /((https?:\/\/)?(www\.)?[\w-]+\.[a-z]{2,}(\/[^\s]*)?)/i;
 const LINKEDIN_RE = /((https?:\/\/)?(www\.)?linkedin\.com\/[^\s]+)/i;
 
@@ -103,9 +103,25 @@ function monthIndex(m: string): number {
   return map[s] ?? 0;
 }
 
+// A lone date at the end of a line ("Recommenders System   2023", "… Dec 23").
+const TRAILING_DATE_RE = new RegExp(`(?:^|\\s)(${DATE_TOKEN})\\s*$`, 'i');
+
 function extractRange(line: string): { range: DateRange; rest: string } | null {
   const m = RANGE_RE.exec(line);
-  if (!m) return null;
+  if (!m) {
+    // Fall back to a single trailing date so single-dated entries still anchor.
+    const sm = TRAILING_DATE_RE.exec(line);
+    if (sm) {
+      const start = toIsoish(sm[1]);
+      if (start) {
+        return {
+          range: { start, end: '', present: false },
+          rest: line.slice(0, sm.index).trim(),
+        };
+      }
+    }
+    return null;
+  }
   const whole = m[0];
   const present = new RegExp(`(?:[-–—]|to|bis|until)\\s*${PRESENT}\\s*$`, 'i').test(whole);
   const cleaned = whole.replace(/^\s*(?:since|seit)\s+/i, '');
@@ -141,18 +157,53 @@ function matchHeading(line: string): (typeof HEADINGS)[number] | null {
   return null;
 }
 
+/**
+ * DOCX exports sometimes glue a section heading to the first following word
+ * ("PROJECTSMulti-Omics", "PROFESSIONAL EXPERIENCEShispare"). If a line starts
+ * with a known heading immediately followed by an uppercase letter or a colon,
+ * split it into the heading and the remainder.
+ */
+function splitGluedHeading(line: string): string[] {
+  const t = line.trim();
+  const lower = t.toLowerCase();
+  let best: { word: string; rest: string } | null = null;
+  for (const h of HEADINGS) {
+    for (const w of h.words) {
+      if (w.length < 5 || !lower.startsWith(w)) continue;
+      const rest = t.slice(w.length);
+      // Require a real Title-case word (Upper+lower) so "LANGUAGES" is not split
+      // into "LANGUAGE" + "S".
+      const glued = /^[A-ZÄÖÜ][a-zäöü]/.test(rest);
+      const colon = /^:\s*/.test(rest);
+      if ((glued || colon) && rest.replace(/^:\s*/, '').trim()) {
+        if (!best || w.length > best.word.length) {
+          best = { word: t.slice(0, w.length), rest: rest.replace(/^:\s*/, '').trim() };
+        }
+      }
+    }
+  }
+  return best ? [best.word, best.rest] : [line];
+}
+
 // --- Main parse ------------------------------------------------------------
 
 export function parseResume(rawText: string): ParseResult {
   const resume = createResume('Imported Resume');
-  const allLines = rawText.replace(/\r/g, '').split('\n').map((l) => l.replace(/ /g, ' ').trimEnd());
+  const allLines = rawText
+    .replace(/\r/g, '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\t/g, '   ')
+    .split('\n')
+    .map((l) => l.trimEnd());
 
   // Drop page footers/headers like "Ali Nadeem   1/2", "1 / 2", "Page 1 of 2".
-  const lines = allLines.filter(
-    (l) =>
-      !/^(.{0,60}?\s)?\d{1,2}\s*\/\s*\d{1,2}\s*$/.test(l) &&
-      !/^page\s+\d+(\s+of\s+\d+)?$/i.test(l.trim()),
-  );
+  const lines = allLines
+    .filter(
+      (l) =>
+        !/^(.{0,60}?\s)?\d{1,2}\s*\/\s*\d{1,2}\s*$/.test(l) &&
+        !/^page\s+\d+(\s+of\s+\d+)?$/i.test(l.trim()),
+    )
+    .flatMap(splitGluedHeading);
 
   // 1. Header block: everything before the first recognised heading.
   let cursor = 0;
@@ -248,27 +299,39 @@ function buildSection(def: (typeof HEADINGS)[number], rawLines: string[]): Secti
   }
 
   if (def.kind === 'skills') {
-    const items = lines
-      .flatMap((l) => l.split(/[,•|·;]/))
-      .map((s) => stripBullet(s).trim())
-      .filter(Boolean);
-    return {
-      ...base,
-      kind: 'skills',
-      showLevels: false,
-      entries: items.map((name) => ({ id: uid('e'), name, level: 0 as const, group: '' })),
-    } as Section;
+    const entries: { id: string; name: string; level: 0; group: string }[] = [];
+    for (const raw of lines) {
+      const line = stripBullet(raw);
+      // "Category: a, b, c" → group = Category, items = a, b, c.
+      const catM = /^([\p{L}&/ ]{2,40}?)\s*:\s*(.+)$/u.exec(line);
+      const group = catM ? catM[1].trim() : '';
+      const rest = catM ? catM[2] : line;
+      for (const name of splitOutsideParens(rest)) {
+        const n = name.trim().replace(/\.$/, '').trim();
+        if (n) entries.push({ id: uid('e'), name: n, level: 0, group });
+      }
+    }
+    return { ...base, kind: 'skills', showLevels: false, entries } as Section;
   }
 
   if (def.kind === 'languages') {
-    const entries = lines.map((l) => {
-      const clean = stripBullet(l);
-      const m = /^(.+?)\s*[-–:(]\s*([\p{L} ]+)\)?$/u.exec(clean);
-      const name = (m ? m[1] : clean).trim();
-      const levelRaw = (m ? m[2] : '').trim().toLowerCase();
-      const level = mapLanguageLevel(levelRaw);
-      return { id: uid('e'), name, level };
-    });
+    const entries: { id: string; name: string; level: ReturnType<typeof mapLanguageLevel> }[] = [];
+    const LEVEL_WORD =
+      /(?:fluent|native|basic|beginner|intermediate|advanced|proficient|proficiency|mother tongue|muttersprache|fliessend|grundkenntnisse|verhandlungssicher|c1|c2|b1|b2|a1|a2)/i;
+    const SEP = '\u0001';
+    for (const raw of lines) {
+      const clean = stripBullet(raw)
+        // Break "English - Fluent German - Basic" after a level, before the next language.
+        .replace(new RegExp(`(${LEVEL_WORD.source})\\s+(?=\\p{Lu}[\\p{L}]+\\s*[-\u2013\u2014:(])`, 'giu'), `$1${SEP}`);
+      const chunks = clean.split(new RegExp(`${SEP}|\\s{2,}`)).map((c) => c.trim()).filter(Boolean);
+      for (const chunk of chunks.length ? chunks : [clean]) {
+        const m = /^(.+?)\s*[-–—:(]\s*([\p{L} ]+)\)?$/u.exec(chunk);
+        const name = (m ? m[1] : chunk).trim();
+        if (!name) continue;
+        const level = mapLanguageLevel((m ? m[2] : '').trim().toLowerCase());
+        entries.push({ id: uid('e'), name, level });
+      }
+    }
     return { ...base, kind: 'languages', entries } as Section;
   }
 
@@ -447,6 +510,26 @@ function mapLanguageLevel(raw: string): import('../../types/resume').LanguageLev
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Split a skill list on separators that sit OUTSIDE parentheses, so
+ *  "Python (NumPy, Pandas)" stays a single item. */
+function splitOutsideParens(s: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of s) {
+    if (ch === '(' || ch === '[') depth++;
+    else if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+    if (depth === 0 && /[,•·;|]/.test(ch)) {
+      if (cur.trim()) out.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur.trim()) out.push(cur);
+  return out;
 }
 
 export { SINGLE_DATE_RE };
