@@ -14,7 +14,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Eye, EyeOff, Trash2, Plus, Pencil } from 'lucide-react';
+import { Eye, EyeOff, Trash2, Plus, Pencil, ChevronDown } from 'lucide-react';
 import type { Resume, SectionKind } from '../../types/resume';
 import { useResumeStore } from '../../store/resumeStore';
 import { DEFAULT_SECTION_TITLE } from '../../utils/factories';
@@ -32,6 +32,13 @@ export default function SectionsEditor({ resume }: { resume: Resume }) {
   const { setSections, addSection, removeSection, updateSection, toggleSection } = useResumeStore();
   const [editingTitle, setEditingTitle] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggleCollapsed = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -57,6 +64,17 @@ export default function SectionsEditor({ resume }: { resume: Resume }) {
                   <section className="rounded-xl border border-black/10 bg-canvas/40 dark:border-white/10 dark:bg-white/[0.02]">
                     <header className="flex items-center gap-1 px-2 py-2">
                       {handle}
+                      <button
+                        className="focusable rounded p-1 text-ink-soft hover:bg-black/5 dark:hover:bg-white/10"
+                        onClick={() => toggleCollapsed(section.id)}
+                        aria-label={collapsed.has(section.id) ? 'Expand section' : 'Collapse section'}
+                        title={collapsed.has(section.id) ? 'Expand' : 'Collapse'}
+                      >
+                        <ChevronDown
+                          size={15}
+                          className={`transition ${collapsed.has(section.id) ? '-rotate-90' : ''}`}
+                        />
+                      </button>
                       {editingTitle === section.id ? (
                         <TextInput
                           autoFocus
@@ -92,9 +110,11 @@ export default function SectionsEditor({ resume }: { resume: Resume }) {
                         <Trash2 size={15} />
                       </button>
                     </header>
-                    <div className="px-3 pb-3">
-                      <SectionBody resumeId={resume.id} section={section} />
-                    </div>
+                    {!collapsed.has(section.id) && (
+                      <div className="px-3 pb-3">
+                        <SectionBody resumeId={resume.id} section={section} />
+                      </div>
+                    )}
                   </section>
                 )}
               </SortableRow>
