@@ -181,13 +181,49 @@ function sectionBlocks(
   };
 
   if (ENTRY_KINDS.has(section.kind)) {
-    const allEntries = (section as { entries: { id: string; hidden?: boolean }[] }).entries;
+    const allEntries = (section as { entries: { id: string; hidden?: boolean; company?: string }[] }).entries;
     // Entries flagged hidden are kept in data but excluded from the output.
     const visibleIdx = allEntries
       .map((e, i) => ({ e, i }))
       .filter(({ e }) => !e.hidden);
     if (!visibleIdx.length) return []; // hide empty/all-hidden sections entirely
     const blocks: Block[] = [heading];
+
+    const groupPromotions =
+      (section.kind === 'experience' || section.kind === 'courses' || section.kind === 'organisations') &&
+      (section as { groupPromotions?: boolean }).groupPromotions;
+
+    if (groupPromotions) {
+      // Group consecutive roles at the same employer under one company header.
+      let pos = 0;
+      let i = 0;
+      while (i < visibleIdx.length) {
+        const company = (allEntries[visibleIdx[i].i].company ?? '').trim();
+        blocks.push({
+          key: `${section.id}-grp-${pos}`,
+          node: (
+            <div style={{ fontWeight: 700, color: '#1a1a1a' }}>{company || '—'}</div>
+          ),
+          spacingBefore: pos === 0 ? 4 : 10,
+          keepWithNext: true,
+        });
+        let j = i;
+        while (j < visibleIdx.length && (allEntries[visibleIdx[j].i].company ?? '').trim() === company) {
+          const idx = visibleIdx[j].i;
+          blocks.push({
+            key: `${section.id}-${allEntries[idx].id}`,
+            node: renderEntry(section, idx, ctx, { hideCompany: true }),
+            spacingBefore: j === i ? 3 : 7,
+            keepWithNext: false,
+          });
+          j++;
+        }
+        i = j;
+        pos++;
+      }
+      return blocks;
+    }
+
     visibleIdx.forEach(({ i }, pos) => {
       blocks.push({
         key: `${section.id}-${allEntries[i].id}`,

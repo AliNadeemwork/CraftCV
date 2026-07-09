@@ -174,31 +174,31 @@ function EntryHead({
   );
 }
 
-function ExperienceRow({ e, ctx }: { e: ExperienceEntry; ctx: RenderContext }): ReactNode {
+function ExperienceRow({ e, ctx, subtitleFirst, hideCompany }: { e: ExperienceEntry; ctx: RenderContext; subtitleFirst?: boolean; hideCompany?: boolean }): ReactNode {
   const loc = e.location ? ` · ${e.location}` : '';
+  const company = `${e.company}${loc}`.replace(/^ · /, '');
+  const role = e.title || 'Role';
+  const [primary, secondary] = hideCompany
+    ? [role, e.location]
+    : subtitleFirst
+      ? [company, role]
+      : [role, company];
   return (
     <div>
-      <EntryHead
-        primary={e.title || 'Role'}
-        secondary={`${e.company}${loc}`.replace(/^ · /, '')}
-        right={formatRange(e.date, ctx.dateFormat)}
-        ctx={ctx}
-      />
+      <EntryHead primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} ctx={ctx} />
       <RichText html={e.description} />
     </div>
   );
 }
 
-function EducationRow({ e, ctx }: { e: EducationEntry; ctx: RenderContext }): ReactNode {
+function EducationRow({ e, ctx, subtitleFirst }: { e: EducationEntry; ctx: RenderContext; subtitleFirst?: boolean }): ReactNode {
   const loc = e.location ? ` · ${e.location}` : '';
+  const school = `${e.institution}${loc}`.replace(/^ · /, '');
+  const degree = e.degree || 'Degree';
+  const [primary, secondary] = subtitleFirst ? [school, degree] : [degree, school];
   return (
     <div>
-      <EntryHead
-        primary={e.degree || 'Degree'}
-        secondary={`${e.institution}${loc}`.replace(/^ · /, '')}
-        right={formatRange(e.date, ctx.dateFormat)}
-        ctx={ctx}
-      />
+      <EntryHead primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} ctx={ctx} />
       <RichText html={e.description} />
     </div>
   );
@@ -291,12 +291,18 @@ function SkillsBody({
   entries,
   showLevels,
   ctx,
+  styleOverride,
+  columns,
 }: {
   entries: SkillEntry[];
   showLevels: boolean;
   ctx: RenderContext;
+  styleOverride?: SkillStyle;
+  columns?: number;
 }): ReactNode {
-  const style = ctx.skillStyle;
+  const style = styleOverride ?? ctx.skillStyle;
+  const cols = Math.min(4, Math.max(1, columns ?? 1));
+  const colStyle: CSSProperties = cols > 1 ? { columnCount: cols, columnGap: '1.2em' } : {};
   // Group by `group`, preserving first-seen order.
   const groups = new Map<string, SkillEntry[]>();
   for (const s of entries.filter((e) => !e.hidden)) {
@@ -338,9 +344,9 @@ function SkillsBody({
     }
     // dots | bars → labelled rows with an optional level indicator
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, ...colStyle }}>
         {items.map((s) => (
-          <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5em' }}>
+          <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5em', breakInside: 'avoid' }}>
             <span style={{ color: strong(ctx.onAccent) }}>{s.name}</span>
             {showLevels && s.level > 0 && (style === 'bars' ? <LevelBar level={s.level} ctx={ctx} /> : <LevelDots level={s.level} ctx={ctx} />)}
           </div>
@@ -376,11 +382,13 @@ function hexTint(hex: string): string {
   return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
 }
 
-function LanguagesBody({ entries, ctx }: { entries: LanguageEntry[]; ctx: RenderContext }): ReactNode {
+function LanguagesBody({ entries, ctx, columns }: { entries: LanguageEntry[]; ctx: RenderContext; columns?: number }): ReactNode {
+  const cols = Math.min(4, Math.max(1, columns ?? 1));
+  const colStyle: CSSProperties = cols > 1 ? { columnCount: cols, columnGap: '1.2em' } : {};
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, ...colStyle }}>
       {entries.filter((l) => !l.hidden).map((l) => (
-        <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5em' }}>
+        <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5em', breakInside: 'avoid' }}>
           <span style={{ color: strong(ctx.onAccent) }}>{l.name}</span>
           <span style={{ color: muted(ctx.onAccent), fontSize: '0.9em' }}>{l.level}</span>
         </div>
@@ -408,14 +416,14 @@ function SimpleBody({ entries, ctx }: { entries: SimpleEntry[]; ctx: RenderConte
 }
 
 /** Render a single entry (used by the block builder so each is measurable). */
-export function renderEntry(section: Section, index: number, ctx: RenderContext): ReactNode {
+export function renderEntry(section: Section, index: number, ctx: RenderContext, opts?: { hideCompany?: boolean }): ReactNode {
   switch (section.kind) {
     case 'experience':
     case 'courses':
     case 'organisations':
-      return <ExperienceRow e={section.entries[index]} ctx={ctx} />;
+      return <ExperienceRow e={section.entries[index]} ctx={ctx} subtitleFirst={section.subtitleFirst} hideCompany={opts?.hideCompany} />;
     case 'education':
-      return <EducationRow e={section.entries[index]} ctx={ctx} />;
+      return <EducationRow e={section.entries[index]} ctx={ctx} subtitleFirst={section.subtitleFirst} />;
     case 'projects':
       return <ProjectRow e={section.entries[index]} ctx={ctx} />;
     case 'certificates':
@@ -431,9 +439,9 @@ export function renderCompactBody(section: Section, ctx: RenderContext): ReactNo
     case 'summary':
       return <RichText html={section.content} />;
     case 'skills':
-      return <SkillsBody entries={section.entries} showLevels={section.showLevels} ctx={ctx} />;
+      return <SkillsBody entries={section.entries} showLevels={section.showLevels} ctx={ctx} styleOverride={section.style} columns={section.columns} />;
     case 'languages':
-      return <LanguagesBody entries={section.entries} ctx={ctx} />;
+      return <LanguagesBody entries={section.entries} ctx={ctx} columns={section.columns} />;
     case 'interests':
     case 'awards':
     case 'publications':

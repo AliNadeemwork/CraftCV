@@ -133,26 +133,40 @@ export interface SummarySection extends BaseSection {
   kind: 'summary';
   content: string; // rich-text HTML
 }
+/** Per-section display options (FlowCV "Section Customizations"). */
 export interface ExperienceSection extends BaseSection {
   kind: 'experience';
   entries: ExperienceEntry[];
+  /** Show employer before the role (Employer – Job Title). Default false. */
+  subtitleFirst?: boolean;
+  /** Group consecutive roles at the same employer under one heading. */
+  groupPromotions?: boolean;
 }
 export interface EducationSection extends BaseSection {
   kind: 'education';
   entries: EducationEntry[];
+  /** Show school before the degree (School, Degree). Default false. */
+  subtitleFirst?: boolean;
 }
 export interface SkillsSection extends BaseSection {
   kind: 'skills';
   entries: SkillEntry[];
   showLevels: boolean;
+  /** Per-section style override; falls back to the global design.skillStyle. */
+  style?: SkillStyle;
+  /** Number of columns to lay skills out in (1–4). */
+  columns?: number;
 }
 export interface LanguagesSection extends BaseSection {
   kind: 'languages';
   entries: LanguageEntry[];
+  style?: SkillStyle;
+  columns?: number;
 }
 export interface ProjectsSection extends BaseSection {
   kind: 'projects';
   entries: ProjectEntry[];
+  subtitleFirst?: boolean;
 }
 export interface CertificatesSection extends BaseSection {
   kind: 'certificates';
@@ -162,10 +176,14 @@ export interface CertificatesSection extends BaseSection {
 export interface CoursesSection extends BaseSection {
   kind: 'courses';
   entries: ExperienceEntry[];
+  subtitleFirst?: boolean;
+  groupPromotions?: boolean;
 }
 export interface OrganisationsSection extends BaseSection {
   kind: 'organisations';
   entries: ExperienceEntry[];
+  subtitleFirst?: boolean;
+  groupPromotions?: boolean;
 }
 export interface SimpleListSection extends BaseSection {
   kind: 'interests' | 'awards' | 'publications' | 'references' | 'custom';

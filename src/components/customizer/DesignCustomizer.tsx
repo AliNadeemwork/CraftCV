@@ -1,9 +1,17 @@
-import { Check } from 'lucide-react';
-import type { DateFormat, FontFamilyId, PageSize, Resume } from '../../types/resume';
+import { useRef, useState } from 'react';
+import { Check, ChevronDown } from 'lucide-react';
+import type {
+  DateFormat,
+  FontFamilyId,
+  PageSize,
+  Resume,
+  Section,
+  SkillStyle,
+} from '../../types/resume';
 import { useResumeStore } from '../../store/resumeStore';
 import { TEMPLATE_LIST, TEMPLATES } from '../templates/templates';
 import { ACCENT_PRESETS, FONT_OPTIONS } from '../../utils/design';
-import { Field, Select } from '../ui/primitives';
+import { Select } from '../ui/primitives';
 
 const DATE_FORMATS: { id: DateFormat; label: string }[] = [
   { id: 'MMM YYYY', label: 'Jan 2026' },
@@ -14,7 +22,6 @@ const DATE_FORMATS: { id: DateFormat; label: string }[] = [
   { id: 'YYYY', label: '2026' },
 ];
 
-/** Small segmented control matching the existing page-size/photo toggles. */
 function Segmented<T extends string>({
   value,
   options,
@@ -25,7 +32,7 @@ function Segmented<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="flex overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
+    <div className="flex flex-wrap overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
       {options.map((o) => (
         <button
           key={o.id}
@@ -65,21 +72,80 @@ function Slider({
         onChange={(e) => onChange(Number(e.target.value))}
         className="focusable h-1 w-28 cursor-pointer accent-brandaccent"
       />
-      <span className="w-10 text-right text-xs tabular-nums text-ink-soft">{format(value)}</span>
+      <span className="w-12 text-right text-xs tabular-nums text-ink-soft">{format(value)}</span>
     </div>
   );
 }
 
+/** A named, collapsible group with an anchor id so the jump-nav can scroll to it. */
+function Group({
+  id,
+  title,
+  children,
+  registerRef,
+  defaultOpen = true,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+  registerRef: (id: string, el: HTMLDivElement | null) => void;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div ref={(el) => registerRef(id, el)} className="scroll-mt-2 rounded-xl border border-black/10 bg-canvas/40 dark:border-white/10 dark:bg-white/[0.02]">
+      <button
+        className="focusable flex w-full items-center justify-between px-3 py-2.5 text-left"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink dark:text-neutral-200">{title}</span>
+        <ChevronDown size={15} className={`text-ink-soft transition ${open ? '' : '-rotate-90'}`} />
+      </button>
+      {open && <div className="border-t border-black/5 px-3 py-2.5 dark:border-white/5">{children}</div>}
+    </div>
+  );
+}
+
+const NAV: { id: string; label: string }[] = [
+  { id: 'template', label: 'Template' },
+  { id: 'colour', label: 'Colour' },
+  { id: 'layout', label: 'Layout' },
+  { id: 'type', label: 'Type' },
+  { id: 'headings', label: 'Headings' },
+  { id: 'entries', label: 'Entries' },
+  { id: 'header', label: 'Header' },
+  { id: 'footer', label: 'Footer' },
+  { id: 'sections', label: 'Sections' },
+];
+
 export default function DesignCustomizer({ resume }: { resume: Resume }) {
   const updateDesign = useResumeStore((s) => s.updateDesign);
+  const updateSection = useResumeStore((s) => s.updateSection);
   const d = resume.design;
   const set = (patch: Partial<typeof d>) => updateDesign(resume.id, patch);
+  const refs = useRef<Record<string, HTMLDivElement | null>>({});
+  const registerRef = (id: string, el: HTMLDivElement | null) => {
+    refs.current[id] = el;
+  };
+  const jump = (id: string) => refs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   return (
-    <div className="space-y-5">
-      {/* Templates */}
-      <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">Template</h3>
+    <div className="space-y-3">
+      {/* Jump navigation */}
+      <div className="sticky top-0 z-10 -mx-1 flex flex-wrap gap-1 bg-canvas/80 px-1 py-1 backdrop-blur dark:bg-canvas-dark/80">
+        {NAV.map((n) => (
+          <button
+            key={n.id}
+            onClick={() => jump(n.id)}
+            className="focusable rounded-full border border-black/10 px-2.5 py-1 text-[11px] text-ink-soft hover:bg-brandaccent/10 hover:text-ink dark:border-white/10 dark:text-neutral-400"
+          >
+            {n.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Template */}
+      <Group id="template" title="Template" registerRef={registerRef}>
         <div className="grid grid-cols-2 gap-2">
           {TEMPLATE_LIST.map((t) => {
             const active = d.template === t.id;
@@ -103,11 +169,10 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
             );
           })}
         </div>
-      </section>
+      </Group>
 
-      {/* Accent */}
-      <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">Accent colour</h3>
+      {/* Colour */}
+      <Group id="colour" title="Accent colour" registerRef={registerRef}>
         <div className="flex flex-wrap items-center gap-2">
           {ACCENT_PRESETS.map((c) => (
             <button
@@ -138,108 +203,10 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
             aria-label="Accent hex"
           />
         </div>
-      </section>
+      </Group>
 
-      {/* Typography & spacing */}
-      <section className="rounded-xl border border-black/5 bg-canvas/40 px-3 py-2 dark:border-white/5 dark:bg-white/[0.02]">
-        <Row label="Font">
-          <Select
-            value={d.fontFamily}
-            onChange={(e) => set({ fontFamily: e.target.value as FontFamilyId })}
-            className="w-40"
-          >
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-                {f.serif ? ' (serif)' : ''}
-              </option>
-            ))}
-          </Select>
-        </Row>
-        <Row label="Font size">
-          <Slider value={d.fontScale} min={0.85} max={1.2} step={0.01} onChange={(fontScale) => set({ fontScale })} format={(v) => `${Math.round(v * 100)}%`} />
-        </Row>
-        <Row label="Line height">
-          <Slider value={d.lineHeight} min={1.1} max={1.8} step={0.05} onChange={(lineHeight) => set({ lineHeight })} format={(v) => v.toFixed(2)} />
-        </Row>
-        <Row label="Page margin">
-          <Slider value={d.margin} min={8} max={28} step={1} onChange={(margin) => set({ margin })} format={(v) => `${v}mm`} />
-        </Row>
-        <Row label="Section spacing">
-          <Slider value={d.sectionSpacing} min={8} max={34} step={1} onChange={(sectionSpacing) => set({ sectionSpacing })} format={(v) => `${v}px`} />
-        </Row>
-      </section>
-
-      {/* Page + dates + photo */}
-      <section className="rounded-xl border border-black/5 bg-canvas/40 px-3 py-2 dark:border-white/5 dark:bg-white/[0.02]">
-        <Row label="Page size">
-          <div className="flex overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
-            {(['A4', 'Letter'] as PageSize[]).map((size) => (
-              <button
-                key={size}
-                onClick={() => set({ pageSize: size })}
-                className={`focusable px-3 py-1 text-xs ${
-                  d.pageSize === size ? 'bg-brandaccent text-white' : 'text-ink-soft'
-                }`}
-              >
-                {size}
-              </button>
-            ))}
-          </div>
-        </Row>
-        <Row label="Date format">
-          <Select value={d.dateFormat} onChange={(e) => set({ dateFormat: e.target.value as DateFormat })} className="w-36">
-            {DATE_FORMATS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </Select>
-        </Row>
-        <Row label="Show photo">
-          <div className="flex overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
-            {[['On', true], ['Off', false]].map(([label, val]) => (
-              <button
-                key={String(val)}
-                onClick={() => set({ showPhoto: val as boolean })}
-                className={`focusable px-3 py-1 text-xs ${
-                  d.showPhoto === val ? 'bg-brandaccent text-white' : 'text-ink-soft'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </Row>
-        {d.showPhoto && (
-          <>
-            <Row label="Photo shape">
-              <Segmented
-                value={d.photoShape}
-                onChange={(photoShape) => set({ photoShape })}
-                options={[
-                  { id: 'round', label: 'Round' },
-                  { id: 'rounded', label: 'Rounded' },
-                  { id: 'square', label: 'Square' },
-                ]}
-              />
-            </Row>
-            <Row label="Photo size">
-              <Slider value={d.photoSize ?? 74} min={48} max={110} step={2} onChange={(photoSize) => set({ photoSize })} format={(v) => `${v}px`} />
-            </Row>
-            <Row label="Photo border">
-              <Segmented
-                value={d.photoBorder ? 'on' : 'off'}
-                onChange={(v) => set({ photoBorder: v === 'on' })}
-                options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]}
-              />
-            </Row>
-          </>
-        )}
-      </section>
-
-      {/* Layout & content styling */}
-      <section className="rounded-xl border border-black/5 bg-canvas/40 px-3 py-2 dark:border-white/5 dark:bg-white/[0.02]">
+      {/* Layout */}
+      <Group id="layout" title="Layout & page" registerRef={registerRef}>
         <Row label="Column layout">
           <Segmented
             value={d.layout ?? 'auto'}
@@ -252,57 +219,25 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
             ]}
           />
         </Row>
-        <Row label="Skill style">
-          <Segmented
-            value={d.skillStyle ?? 'dots'}
-            onChange={(skillStyle) => set({ skillStyle })}
-            options={[
-              { id: 'dots', label: 'Dots' },
-              { id: 'bars', label: 'Bars' },
-              { id: 'pills', label: 'Pills' },
-              { id: 'text', label: 'Text' },
-            ]}
-          />
+        <Row label="Page size">
+          <Segmented value={d.pageSize} onChange={(pageSize) => set({ pageSize: pageSize as PageSize })} options={[{ id: 'A4', label: 'A4' }, { id: 'Letter', label: 'Letter' }]} />
         </Row>
-        <Row label="Heading case">
-          <Segmented
-            value={d.headingCase ?? 'auto'}
-            onChange={(headingCase) => set({ headingCase })}
-            options={[
-              { id: 'auto', label: 'Auto' },
-              { id: 'normal', label: 'Aa' },
-              { id: 'upper', label: 'AA' },
-            ]}
-          />
+        <Row label="Page margin">
+          <Slider value={d.margin} min={8} max={28} step={1} onChange={(margin) => set({ margin })} format={(v) => `${v}mm`} />
         </Row>
-        <Row label="Heading style">
-          <Segmented
-            value={d.headingStyle ?? 'auto'}
-            onChange={(headingStyle) => set({ headingStyle })}
-            options={[
-              { id: 'auto', label: 'Auto' },
-              { id: 'underline', label: 'Rule' },
-              { id: 'bar', label: 'Bar' },
-              { id: 'plain', label: 'Plain' },
-            ]}
-          />
+        <Row label="Section spacing">
+          <Slider value={d.sectionSpacing} min={8} max={34} step={1} onChange={(sectionSpacing) => set({ sectionSpacing })} format={(v) => `${v}px`} />
         </Row>
-        <Row label="Entry date">
-          <Segmented
-            value={d.datePosition ?? 'right'}
-            onChange={(datePosition) => set({ datePosition })}
-            options={[
-              { id: 'right', label: 'Right' },
-              { id: 'below', label: 'Below title' },
-            ]}
-          />
-        </Row>
-        <Row label="Contact icons">
-          <Segmented
-            value={(d.contactIcons ?? true) ? 'on' : 'off'}
-            onChange={(v) => set({ contactIcons: v === 'on' })}
-            options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]}
-          />
+      </Group>
+
+      {/* Typography */}
+      <Group id="type" title="Typography" registerRef={registerRef}>
+        <Row label="Font">
+          <Select value={d.fontFamily} onChange={(e) => set({ fontFamily: e.target.value as FontFamilyId })} className="w-40">
+            {FONT_OPTIONS.map((f) => (
+              <option key={f.id} value={f.id}>{f.label}{f.serif ? ' (serif)' : ''}</option>
+            ))}
+          </Select>
         </Row>
         <Row label="Name font">
           <Select
@@ -316,11 +251,96 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
             ))}
           </Select>
         </Row>
-      </section>
+        <Row label="Font size">
+          <Slider value={d.fontScale} min={0.85} max={1.2} step={0.01} onChange={(fontScale) => set({ fontScale })} format={(v) => `${Math.round(v * 100)}%`} />
+        </Row>
+        <Row label="Line height">
+          <Slider value={d.lineHeight} min={1.1} max={1.8} step={0.05} onChange={(lineHeight) => set({ lineHeight })} format={(v) => v.toFixed(2)} />
+        </Row>
+      </Group>
+
+      {/* Headings */}
+      <Group id="headings" title="Headings" registerRef={registerRef}>
+        <Row label="Case">
+          <Segmented
+            value={d.headingCase ?? 'auto'}
+            onChange={(headingCase) => set({ headingCase })}
+            options={[{ id: 'auto', label: 'Auto' }, { id: 'normal', label: 'Aa' }, { id: 'upper', label: 'AA' }]}
+          />
+        </Row>
+        <Row label="Style">
+          <Segmented
+            value={d.headingStyle ?? 'auto'}
+            onChange={(headingStyle) => set({ headingStyle })}
+            options={[
+              { id: 'auto', label: 'Auto' },
+              { id: 'underline', label: 'Rule' },
+              { id: 'bar', label: 'Bar' },
+              { id: 'plain', label: 'Plain' },
+            ]}
+          />
+        </Row>
+      </Group>
+
+      {/* Entries */}
+      <Group id="entries" title="Entries & dates" registerRef={registerRef}>
+        <Row label="Skill style">
+          <Segmented
+            value={d.skillStyle ?? 'dots'}
+            onChange={(skillStyle) => set({ skillStyle })}
+            options={[
+              { id: 'dots', label: 'Dots' },
+              { id: 'bars', label: 'Bars' },
+              { id: 'pills', label: 'Pills' },
+              { id: 'text', label: 'Text' },
+            ]}
+          />
+        </Row>
+        <Row label="Entry date">
+          <Segmented
+            value={d.datePosition ?? 'right'}
+            onChange={(datePosition) => set({ datePosition })}
+            options={[{ id: 'right', label: 'Right' }, { id: 'below', label: 'Below title' }]}
+          />
+        </Row>
+        <Row label="Date format">
+          <Select value={d.dateFormat} onChange={(e) => set({ dateFormat: e.target.value as DateFormat })} className="w-36">
+            {DATE_FORMATS.map((f) => (
+              <option key={f.id} value={f.id}>{f.label}</option>
+            ))}
+          </Select>
+        </Row>
+      </Group>
+
+      {/* Header & photo */}
+      <Group id="header" title="Header & photo" registerRef={registerRef}>
+        <Row label="Contact icons">
+          <Segmented value={(d.contactIcons ?? true) ? 'on' : 'off'} onChange={(v) => set({ contactIcons: v === 'on' })} options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]} />
+        </Row>
+        <Row label="Show photo">
+          <Segmented value={d.showPhoto ? 'on' : 'off'} onChange={(v) => set({ showPhoto: v === 'on' })} options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]} />
+        </Row>
+        {d.showPhoto && (
+          <>
+            <Row label="Photo shape">
+              <Segmented
+                value={d.photoShape}
+                onChange={(photoShape) => set({ photoShape })}
+                options={[{ id: 'round', label: 'Round' }, { id: 'rounded', label: 'Rounded' }, { id: 'square', label: 'Square' }]}
+              />
+            </Row>
+            <Row label="Photo size">
+              <Slider value={d.photoSize ?? 74} min={48} max={110} step={2} onChange={(photoSize) => set({ photoSize })} format={(v) => `${v}px`} />
+            </Row>
+            <Row label="Photo border">
+              <Segmented value={d.photoBorder ? 'on' : 'off'} onChange={(v) => set({ photoBorder: v === 'on' })} options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]} />
+            </Row>
+          </>
+        )}
+      </Group>
 
       {/* Footer */}
-      <section className="rounded-xl border border-black/5 bg-canvas/40 px-3 py-2 dark:border-white/5 dark:bg-white/[0.02]">
-        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Page footer</div>
+      <Group id="footer" title="Page footer" registerRef={registerRef} defaultOpen={false}>
         {([
           ['pageNumbers', 'Page numbers'],
           ['name', 'Your name'],
@@ -343,14 +363,97 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
             />
           </Row>
         ))}
-      </section>
+      </Group>
 
-      <Field label="Section headings are renamable">
-        <p className="text-xs text-ink-soft/80">
-          Rename any section (e.g. “Experience” → “Berufserfahrung”) directly in the Content tab by
-          clicking its title. Set the resume language in the top bar to enable right-to-left layout.
-        </p>
-      </Field>
+      {/* Section customizations */}
+      <Group id="sections" title="Section customizations" registerRef={registerRef}>
+        <div className="space-y-3">
+          {resume.sections.filter((s) => SECTION_HAS_OPTIONS.has(s.kind)).length === 0 && (
+            <p className="text-xs text-ink-soft/70">No sections with layout options yet.</p>
+          )}
+          {resume.sections.filter((s) => SECTION_HAS_OPTIONS.has(s.kind)).map((section) => (
+            <SectionOptions
+              key={section.id}
+              section={section}
+              onPatch={(patch) => updateSection(resume.id, section.id, patch)}
+            />
+          ))}
+        </div>
+      </Group>
+
+      <p className="px-1 pb-2 text-[11px] text-ink-soft/70">
+        Rename any section by clicking its title in the Content tab. New controls default to the
+        current look, so nothing changes until you adjust it.
+      </p>
+    </div>
+  );
+}
+
+const SECTION_HAS_OPTIONS = new Set(['experience', 'courses', 'organisations', 'education', 'skills', 'languages']);
+
+function SectionOptions({ section, onPatch }: { section: Section; onPatch: (patch: Partial<Section>) => void }) {
+  const kind = section.kind;
+  const isExp = kind === 'experience' || kind === 'courses' || kind === 'organisations';
+
+  return (
+    <div className="rounded-lg border border-black/10 px-2.5 py-2 dark:border-white/10">
+      <div className="mb-1 text-xs font-semibold text-ink dark:text-neutral-200">{section.title}</div>
+
+      {isExp && (
+        <>
+          <Row label="Order">
+            <Segmented
+              value={(section as { subtitleFirst?: boolean }).subtitleFirst ? 'sub' : 'title'}
+              onChange={(v) => onPatch({ subtitleFirst: v === 'sub' } as Partial<Section>)}
+              options={[{ id: 'title', label: 'Title · Employer' }, { id: 'sub', label: 'Employer · Title' }]}
+            />
+          </Row>
+          <Row label="Group promotions">
+            <Segmented
+              value={(section as { groupPromotions?: boolean }).groupPromotions ? 'on' : 'off'}
+              onChange={(v) => onPatch({ groupPromotions: v === 'on' } as Partial<Section>)}
+              options={[{ id: 'off', label: 'Off' }, { id: 'on', label: 'On' }]}
+            />
+          </Row>
+        </>
+      )}
+
+      {kind === 'education' && (
+        <Row label="Order">
+          <Segmented
+            value={(section as { subtitleFirst?: boolean }).subtitleFirst ? 'sub' : 'title'}
+            onChange={(v) => onPatch({ subtitleFirst: v === 'sub' } as Partial<Section>)}
+            options={[{ id: 'title', label: 'Degree · School' }, { id: 'sub', label: 'School · Degree' }]}
+          />
+        </Row>
+      )}
+
+      {(kind === 'skills' || kind === 'languages') && (
+        <>
+          {kind === 'skills' && (
+            <Row label="Style">
+              <Segmented
+                value={(section as { style?: SkillStyle }).style ?? 'inherit'}
+                onChange={(v) => onPatch({ style: v === 'inherit' ? undefined : (v as SkillStyle) } as Partial<Section>)}
+                options={[
+                  { id: 'inherit', label: 'Default' },
+                  { id: 'dots', label: 'Dots' },
+                  { id: 'bars', label: 'Bars' },
+                  { id: 'pills', label: 'Pills' },
+                  { id: 'text', label: 'Text' },
+                ]}
+              />
+            </Row>
+          )}
+          <Row label="Columns">
+            <Segmented
+              value={String((section as { columns?: number }).columns ?? 1)}
+              onChange={(v) => onPatch({ columns: Number(v) } as Partial<Section>)}
+              options={[{ id: '1', label: '1' }, { id: '2', label: '2' }, { id: '3', label: '3' }, { id: '4', label: '4' }]}
+            />
+          </Row>
+        </>
+      )}
     </div>
   );
 }
@@ -358,9 +461,7 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
 /** A tiny wireframe glyph that hints at each template's layout. */
 function TemplateGlyph({ id, accent }: { id: string; accent: string }) {
   const t = TEMPLATES[id as keyof typeof TEMPLATES];
-  const bar = (w: string, c = '#d8d3cc') => (
-    <div style={{ height: 3, width: w, background: c, borderRadius: 2 }} />
-  );
+  const bar = (w: string, c = '#d8d3cc') => <div style={{ height: 3, width: w, background: c, borderRadius: 2 }} />;
   const lines = (
     <div className="flex flex-1 flex-col gap-1 p-1.5">
       {bar('70%', accent)}
