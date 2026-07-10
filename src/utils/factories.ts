@@ -39,6 +39,7 @@ export const DEFAULT_SECTION_TITLE: Record<SectionKind, string> = {
   awards: 'Awards',
   publications: 'Publications',
   references: 'References',
+  declaration: 'Declaration',
   custom: 'Custom Section',
 };
 
@@ -66,10 +67,15 @@ export function createSection(kind: SectionKind, title?: string): Section {
     case 'courses':
     case 'organisations':
       return { ...base, kind, entries: [] };
-    case 'interests':
     case 'awards':
+      return { ...base, kind, entries: [] };
     case 'publications':
+      return { ...base, kind, entries: [] };
     case 'references':
+      return { ...base, kind, entries: [] };
+    case 'declaration':
+      return { ...base, kind, statement: '', fullName: '', place: '', date: '', signature: '' };
+    case 'interests':
     case 'custom':
       return { ...base, kind, entries: [] };
   }
@@ -106,6 +112,12 @@ export function createEntry(kind: SectionKind): unknown {
       return { id: uid('e'), name: '', link: '', date: emptyRange(), description: '' };
     case 'certificates':
       return { id: uid('e'), name: '', issuer: '', date: '', link: '' };
+    case 'awards':
+      return { id: uid('e'), title: '', issuer: '', date: '', description: '' };
+    case 'publications':
+      return { id: uid('e'), title: '', link: '', publisher: '', year: '', month: '', day: '', description: '' };
+    case 'references':
+      return { id: uid('e'), name: '', link: '', jobTitle: '', organization: '', email: '', phone: '' };
     default:
       return { id: uid('e'), title: '', description: '' };
   }

@@ -19,7 +19,7 @@ export interface Block {
   spacingBefore?: number;
 }
 
-const ENTRY_KINDS = new Set(['experience', 'education', 'projects', 'certificates', 'courses', 'organisations']);
+const ENTRY_KINDS = new Set(['experience', 'education', 'projects', 'certificates', 'courses', 'organisations', 'awards', 'publications', 'references']);
 
 function ContactLine({ p, ctx, icons }: { p: PersonalInfo; ctx: RenderContext; icons: boolean }): ReactNode {
   const color = ctx.onAccent ? 'rgba(255,255,255,0.9)' : '#555';

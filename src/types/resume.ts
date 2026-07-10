@@ -19,6 +19,7 @@ export type SectionKind =
   | 'awards'
   | 'publications'
   | 'references'
+  | 'declaration'
   | 'custom';
 
 export interface CustomLink {
@@ -58,6 +59,51 @@ export interface ExperienceEntry {
   description: string;
   /** When true the entry is kept but excluded from the rendered resume/PDF. */
   hidden?: boolean;
+  /** Optional hyperlink target for the entry title (courses/organisations). */
+  link?: string;
+}
+
+export interface AwardEntry {
+  id: string;
+  title: string;
+  issuer: string;
+  date: string;
+  description: string;
+  link?: string;
+  hidden?: boolean;
+}
+
+export interface PublicationEntry {
+  id: string;
+  title: string;
+  link?: string;
+  publisher: string;
+  year: string;
+  month: string; // '' = don't show
+  day: string; // '' = don't show
+  description: string;
+  hidden?: boolean;
+}
+
+export interface ReferenceEntry {
+  id: string;
+  name: string;
+  link?: string;
+  jobTitle: string;
+  organization: string;
+  email: string;
+  phone: string;
+  hidden?: boolean;
+}
+
+/** Declaration is a single block (no entry list). */
+export interface DeclarationData {
+  statement: string;
+  fullName: string;
+  place: string;
+  date: string;
+  /** Signature image as a data URL (drawn or uploaded). */
+  signature: string;
 }
 
 export interface EducationEntry {
@@ -182,8 +228,24 @@ export interface OrganisationsSection extends BaseSection {
   groupPromotions?: boolean;
 }
 export interface SimpleListSection extends BaseSection, DisplayOptions {
-  kind: 'interests' | 'awards' | 'publications' | 'references' | 'custom';
+  kind: 'interests' | 'custom';
   entries: SimpleEntry[];
+}
+export interface AwardsSection extends BaseSection {
+  kind: 'awards';
+  entries: AwardEntry[];
+}
+export interface PublicationsSection extends BaseSection {
+  kind: 'publications';
+  entries: PublicationEntry[];
+  subtitleFirst?: boolean;
+}
+export interface ReferencesSection extends BaseSection {
+  kind: 'references';
+  entries: ReferenceEntry[];
+}
+export interface DeclarationSection extends BaseSection, DeclarationData {
+  kind: 'declaration';
 }
 
 export type Section =
@@ -196,6 +258,10 @@ export type Section =
   | CertificatesSection
   | CoursesSection
   | OrganisationsSection
+  | AwardsSection
+  | PublicationsSection
+  | ReferencesSection
+  | DeclarationSection
   | SimpleListSection;
 
 // --- Design ----------------------------------------------------------------

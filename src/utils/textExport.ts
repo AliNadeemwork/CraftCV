@@ -60,12 +60,31 @@ function sectionToText(section: Section, resume: Resume): string {
       lines.push(section.entries.filter((e) => !e.hidden).map((e) => e.name).join(', '));
       break;
     case 'languages':
-      section.entries.filter((e) => !e.hidden).forEach((e) => lines.push(`${e.name}: ${e.level}`));
+      section.entries.filter((e) => !e.hidden).forEach((e) => lines.push(`${e.name}: ${e.level}${e.detail ? ` (${e.detail})` : ''}`));
+      break;
+    case 'awards':
+      section.entries.filter((e) => !e.hidden).forEach((e) =>
+        entryLines(e.title, e.issuer, e.date, e.description),
+      );
+      break;
+    case 'publications':
+      section.entries.filter((e) => !e.hidden).forEach((e) =>
+        entryLines(e.title, e.publisher, [e.day, e.month, e.year].filter(Boolean).join('/'), e.description),
+      );
+      break;
+    case 'references':
+      section.entries.filter((e) => !e.hidden).forEach((e) =>
+        lines.push(`${e.name}${e.jobTitle ? ', ' + e.jobTitle : ''}${e.organization ? ', ' + e.organization : ''}   ${[e.email, e.phone].filter(Boolean).join(' · ')}`),
+      );
+      break;
+    case 'declaration':
+      if (section.statement) lines.push(section.statement);
+      lines.push([section.fullName, section.place, section.date].filter(Boolean).join('   '));
       break;
     default:
-      section.entries.filter((e) => !e.hidden).forEach((e) =>
-        lines.push([e.title, e.description].filter(Boolean).join(' — ')),
-      );
+      (section as { entries: { title: string; description: string; hidden?: boolean }[] }).entries
+        .filter((e) => !e.hidden)
+        .forEach((e) => lines.push([e.title, e.description].filter(Boolean).join(' — ')));
   }
   return lines.join('\n').trim() + '\n';
 }

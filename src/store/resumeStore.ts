@@ -30,7 +30,7 @@ interface ResumeState {
   updatePersonal: (id: string, patch: Partial<PersonalInfo>) => void;
   updateDesign: (id: string, patch: Partial<Design>) => void;
   setSections: (id: string, sections: Section[]) => void;
-  addSection: (id: string, kind: SectionKind, title?: string) => void;
+  addSection: (id: string, kind: SectionKind, title?: string) => string;
   removeSection: (id: string, sectionId: string) => void;
   updateSection: (id: string, sectionId: string, patch: Partial<Section>) => void;
   toggleSection: (id: string, sectionId: string) => void;
@@ -117,13 +117,13 @@ export const useResumeStore = create<ResumeState>()(
           resumes: patchResume(s.resumes, id, (r) => ({ ...r, sections })),
         })),
 
-      addSection: (id, kind, title) =>
+      addSection: (id, kind, title) => {
+        const section = createSection(kind, title);
         set((s) => ({
-          resumes: patchResume(s.resumes, id, (r) => ({
-            ...r,
-            sections: [...r.sections, createSection(kind, title)],
-          })),
-        })),
+          resumes: patchResume(s.resumes, id, (r) => ({ ...r, sections: [...r.sections, section] })),
+        }));
+        return section.id;
+      },
 
       removeSection: (id, sectionId) =>
         set((s) => ({

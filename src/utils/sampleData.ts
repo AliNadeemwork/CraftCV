@@ -153,7 +153,9 @@ export function sampleResume(): Resume {
           {
             id: uid('e'),
             title: 'Best in Class — CSS Design Awards',
-            description: 'For the Cadence Health patient portal, 2020.',
+            issuer: 'CSS Design Awards',
+            date: '2020',
+            description: 'For the Cadence Health patient portal.',
           },
         ],
       },

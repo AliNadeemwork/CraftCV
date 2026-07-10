@@ -14,14 +14,17 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { Plus, Trash2, ChevronDown, Eye, EyeOff, Copy } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type {
+  AwardEntry,
   CertificateEntry,
   EducationEntry,
   ExperienceEntry,
   LanguageEntry,
   LanguageLevel,
   ProjectEntry,
+  PublicationEntry,
+  ReferenceEntry,
   Section,
   SimpleEntry,
   SkillEntry,
@@ -30,9 +33,10 @@ import type {
 import { useResumeStore } from '../../store/resumeStore';
 import { createEntry } from '../../utils/factories';
 import { uid } from '../../utils/id';
-import { Button, Field, Select, TextInput, Toggle } from '../ui/primitives';
+import { Button, Field, Select, TextInput, TextArea, Toggle } from '../ui/primitives';
 import RichTextEditor from '../ui/RichTextEditor';
 import DateRangeEditor from './DateRangeEditor';
+import Modal from '../ui/Modal';
 import { SortableRow } from './Sortable';
 
 const LANGUAGE_LEVELS: LanguageLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Fluent', 'Native'];
@@ -55,6 +59,10 @@ export default function SectionBody({ resumeId, section }: { resumeId: string; s
         minHeight={110}
       />
     );
+  }
+
+  if (section.kind === 'declaration') {
+    return <DeclarationEditor resumeId={resumeId} section={section} />;
   }
 
   const entries = (section as { entries: { id: string }[] }).entries;
@@ -230,6 +238,12 @@ function summarize(section: Section, entry: { id: string }): string {
       return (entry as ProjectEntry).name;
     case 'certificates':
       return (entry as CertificateEntry).name;
+    case 'awards':
+      return (entry as AwardEntry).title;
+    case 'publications':
+      return (entry as PublicationEntry).title;
+    case 'references':
+      return (entry as ReferenceEntry).name;
     case 'skills':
       return (entry as SkillEntry).name;
     case 'languages': {
@@ -240,6 +254,8 @@ function summarize(section: Section, entry: { id: string }): string {
       return (entry as SimpleEntry).title;
   }
 }
+
+const MONTHS_SHORT = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const SKILL_LEVEL_LABELS = ['None', 'Novice', 'Beginner', 'Skillful', 'Experienced', 'Expert'];
 
@@ -402,6 +418,72 @@ function RichEntryFields({
         </>
       );
     }
+    case 'awards': {
+      const e = entry as AwardEntry;
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Award"><TextInput value={e.title} onChange={(ev) => onPatch({ title: ev.target.value })} /></Field>
+            <Field label="Issuer"><TextInput value={e.issuer} onChange={(ev) => onPatch({ issuer: ev.target.value })} /></Field>
+            <Field label="Date"><TextInput value={e.date} placeholder="2024" onChange={(ev) => onPatch({ date: ev.target.value })} /></Field>
+          </div>
+          <Field label="Description">
+            <RichTextEditor value={e.description} onChange={(description) => onPatch({ description })} />
+          </Field>
+        </>
+      );
+    }
+    case 'publications': {
+      const e = entry as PublicationEntry;
+      const years = Array.from({ length: 60 }, (_, i) => String(new Date().getFullYear() + 2 - i));
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Title"><TextInput value={e.title} onChange={(ev) => onPatch({ title: ev.target.value })} /></Field>
+            <Field label="Link"><TextInput value={e.link ?? ''} onChange={(ev) => onPatch({ link: ev.target.value })} /></Field>
+          </div>
+          <Field label="Publisher"><TextInput value={e.publisher} onChange={(ev) => onPatch({ publisher: ev.target.value })} /></Field>
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Year">
+              <Select value={e.year} onChange={(ev) => onPatch({ year: ev.target.value })}>
+                <option value="">—</option>
+                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+              </Select>
+            </Field>
+            <Field label="Month">
+              <Select value={e.month} onChange={(ev) => onPatch({ month: ev.target.value })}>
+                <option value="">Don't show</option>
+                {MONTHS_SHORT.slice(1).map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
+              </Select>
+            </Field>
+            <Field label="Day">
+              <Select value={e.day} onChange={(ev) => onPatch({ day: ev.target.value })} disabled={!e.month}>
+                <option value="">Don't show</option>
+                {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => <option key={d} value={d}>{d}</option>)}
+              </Select>
+            </Field>
+          </div>
+          <Field label="Description">
+            <RichTextEditor value={e.description} onChange={(description) => onPatch({ description })} />
+          </Field>
+        </>
+      );
+    }
+    case 'references': {
+      const e = entry as ReferenceEntry;
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Name"><TextInput value={e.name} onChange={(ev) => onPatch({ name: ev.target.value })} /></Field>
+            <Field label="Link"><TextInput value={e.link ?? ''} onChange={(ev) => onPatch({ link: ev.target.value })} /></Field>
+            <Field label="Job title"><TextInput value={e.jobTitle} onChange={(ev) => onPatch({ jobTitle: ev.target.value })} /></Field>
+            <Field label="Organization"><TextInput value={e.organization} onChange={(ev) => onPatch({ organization: ev.target.value })} /></Field>
+            <Field label="Email"><TextInput value={e.email} onChange={(ev) => onPatch({ email: ev.target.value })} /></Field>
+            <Field label="Phone"><TextInput value={e.phone} onChange={(ev) => onPatch({ phone: ev.target.value })} /></Field>
+          </div>
+        </>
+      );
+    }
     default: {
       const e = entry as SimpleEntry;
       return (
@@ -416,4 +498,112 @@ function RichEntryFields({
       );
     }
   }
+}
+
+// --- Declaration editor + signature modal ----------------------------------
+
+function DeclarationEditor({ resumeId, section }: { resumeId: string; section: import('../../types/resume').DeclarationSection }) {
+  const updateSection = useResumeStore((s) => s.updateSection);
+  const set = (patch: Partial<import('../../types/resume').DeclarationSection>) => updateSection(resumeId, section.id, patch as Partial<Section>);
+  const [sigOpen, setSigOpen] = useState(false);
+  return (
+    <div className="space-y-3">
+      <Field label="Declaration statement">
+        <TextArea rows={3} value={section.statement} onChange={(e) => set({ statement: e.target.value })} placeholder="I hereby declare that the information above is true and correct to the best of my knowledge." />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Full name"><TextInput value={section.fullName} onChange={(e) => set({ fullName: e.target.value })} /></Field>
+        <Field label="Place"><TextInput value={section.place} onChange={(e) => set({ place: e.target.value })} /></Field>
+        <Field label="Date"><TextInput value={section.date} placeholder="e.g. 10 July 2026" onChange={(e) => set({ date: e.target.value })} /></Field>
+      </div>
+      <Field label="Signature">
+        <div className="flex items-center gap-2">
+          {section.signature ? (
+            <img src={section.signature} alt="signature" className="h-10 rounded border border-black/10 bg-white px-1 dark:border-white/10" />
+          ) : (
+            <span className="text-xs text-ink-soft/70">No signature added.</span>
+          )}
+          <Button size="sm" variant="secondary" onClick={() => setSigOpen(true)}>{section.signature ? 'Change' : 'Add signature'}</Button>
+          {section.signature && <Button size="sm" variant="ghost" onClick={() => set({ signature: '' })}>Remove</Button>}
+        </div>
+      </Field>
+      <SignatureModal open={sigOpen} onClose={() => setSigOpen(false)} onSave={(dataUrl) => { set({ signature: dataUrl }); setSigOpen(false); }} />
+    </div>
+  );
+}
+
+function SignatureModal({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (dataUrl: string) => void }) {
+  const [mode, setMode] = useState<'draw' | 'upload'>('draw');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+
+  const pos = (e: React.PointerEvent) => {
+    const c = canvasRef.current!;
+    const r = c.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * (c.width / r.width), y: (e.clientY - r.top) * (c.height / r.height) };
+  };
+  const start = (e: React.PointerEvent) => {
+    drawing.current = true;
+    const ctx = canvasRef.current!.getContext('2d')!;
+    const p = pos(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+  };
+  const move = (e: React.PointerEvent) => {
+    if (!drawing.current) return;
+    const ctx = canvasRef.current!.getContext('2d')!;
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#111';
+    const p = pos(e);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  };
+  const end = () => { drawing.current = false; };
+  const clear = () => { const c = canvasRef.current; if (c) c.getContext('2d')!.clearRect(0, 0, c.width, c.height); };
+  const saveDraw = () => {
+    const c = canvasRef.current!;
+    onSave(c.toDataURL('image/png'));
+  };
+  const onFile = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onSave(String(reader.result));
+    reader.readAsDataURL(file);
+  };
+
+  if (!open) return null;
+  return (
+    <Modal open={open} onClose={onClose} title="Add signature">
+      <div className="space-y-3">
+        <div className="flex gap-1 rounded-lg bg-black/5 p-1 dark:bg-white/5">
+          <button className={`focusable flex-1 rounded-md py-1.5 text-sm ${mode === 'draw' ? 'bg-white shadow-sm dark:bg-neutral-700' : 'text-ink-soft'}`} onClick={() => setMode('draw')}>Draw</button>
+          <button className={`focusable flex-1 rounded-md py-1.5 text-sm ${mode === 'upload' ? 'bg-white shadow-sm dark:bg-neutral-700' : 'text-ink-soft'}`} onClick={() => setMode('upload')}>Upload image</button>
+        </div>
+        {mode === 'draw' ? (
+          <>
+            <canvas
+              ref={canvasRef}
+              width={440}
+              height={160}
+              className="w-full touch-none rounded-lg border border-black/15 bg-white dark:border-white/15"
+              onPointerDown={start}
+              onPointerMove={move}
+              onPointerUp={end}
+              onPointerLeave={end}
+            />
+            <div className="flex justify-between">
+              <Button size="sm" variant="ghost" onClick={clear}>Clear</Button>
+              <Button size="sm" variant="primary" onClick={saveDraw}>Save signature</Button>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-lg border border-dashed border-black/20 p-6 text-center dark:border-white/20">
+            <input type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} className="text-sm" />
+            <p className="mt-2 text-xs text-ink-soft/70">PNG with transparent background works best.</p>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
 }

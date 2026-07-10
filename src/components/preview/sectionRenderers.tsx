@@ -1,11 +1,15 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type {
+  AwardEntry,
   CertificateEntry,
   DateFormat,
+  DeclarationSection,
   EducationEntry,
   ExperienceEntry,
   LanguageEntry,
   ProjectEntry,
+  PublicationEntry,
+  ReferenceEntry,
   Section,
   SimpleEntry,
   SkillEntry,
@@ -340,7 +344,7 @@ function EntryHead({
   right,
   ctx,
 }: {
-  primary: string;
+  primary: ReactNode;
   secondary?: string;
   right?: string;
   ctx: RenderContext;
@@ -432,6 +436,91 @@ function CertificateRow({ e, ctx }: { e: CertificateEntry; ctx: RenderContext })
           {formatDateValue(e.date, ctx.dateFormat)}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Render text, or a real hyperlink when a target is present (clickable in PDF). */
+function TitleLink({ text, href }: { text: string; href?: string }): ReactNode {
+  if (!href) return <>{text}</>;
+  const url = /^https?:\/\//i.test(href) || /^mailto:|^tel:/i.test(href) ? href : `https://${href}`;
+  return (
+    <a href={url} target="_blank" rel="noreferrer noopener" style={{ color: 'inherit', textDecoration: 'none' }}>
+      {text}
+    </a>
+  );
+}
+function AwardRow({ e, ctx }: { e: AwardEntry; ctx: RenderContext }): ReactNode {
+  return (
+    <div>
+      <EntryHead
+        primary={<TitleLink text={e.title || 'Award'} href={e.link} />}
+        secondary={e.issuer}
+        right={e.date ? formatDateValue(e.date, ctx.dateFormat) : ''}
+        ctx={ctx}
+      />
+      <RichText html={e.description} />
+    </div>
+  );
+}
+
+function PublicationRow({ e, ctx }: { e: PublicationEntry; ctx: RenderContext }): ReactNode {
+  const date = formatYMD(e, ctx.dateFormat);
+  return (
+    <div>
+      <EntryHead
+        primary={<TitleLink text={e.title || 'Publication'} href={e.link} />}
+        secondary={e.publisher}
+        right={date}
+        ctx={ctx}
+      />
+      <RichText html={e.description} />
+    </div>
+  );
+}
+
+function ReferenceRow({ e, ctx }: { e: ReferenceEntry; ctx: RenderContext }): ReactNode {
+  const sub = [e.jobTitle, e.organization].filter(Boolean).join(', ');
+  return (
+    <div>
+      <div style={{ fontWeight: 700, color: strong(ctx.onAccent) }}>
+        <TitleLink text={e.name || 'Reference'} href={e.link} />
+      </div>
+      {sub && <div style={{ color: ctx.onAccent ? 'rgba(255,255,255,0.9)' : ctx.accent, fontWeight: 600 }}>{sub}</div>}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2em 0.8em', color: muted(ctx.onAccent), fontSize: '0.9em' }}>
+        {e.email && <a href={`mailto:${e.email}`} style={{ color: 'inherit', textDecoration: 'none' }}>{e.email}</a>}
+        {e.phone && <a href={`tel:${e.phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit', textDecoration: 'none' }}>{e.phone}</a>}
+      </div>
+    </div>
+  );
+}
+
+/** Publications use Day/Month/Year with optional day/month. */
+function formatYMD(e: PublicationEntry, fmt: DateFormat): string {
+  if (!e.year) return '';
+  if (!e.month) return e.year;
+  const iso = `${e.year}-${e.month.padStart(2, '0')}`;
+  const base = formatDateValue(iso, fmt);
+  if (!e.day) return base;
+  return `${e.day} ${base}`;
+}
+
+export function DeclarationBody({ section, ctx }: { section: DeclarationSection; ctx: RenderContext }): ReactNode {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6em' }}>
+      {section.statement && <div style={{ color: strong(ctx.onAccent) }}>{section.statement}</div>}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '1em', marginTop: '0.4em' }}>
+        <div style={{ color: muted(ctx.onAccent), fontSize: '0.9em' }}>
+          {section.place && <div>{section.place}</div>}
+          {section.date && <div>{section.date}</div>}
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          {section.signature && (
+            <img src={section.signature} alt="signature" style={{ maxHeight: 46, maxWidth: 180, objectFit: 'contain' }} />
+          )}
+          {section.fullName && <div style={{ fontWeight: 600, color: strong(ctx.onAccent), borderTop: section.signature ? 'none' : `1px solid ${muted(ctx.onAccent)}`, paddingTop: 2 }}>{section.fullName}</div>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -633,6 +722,12 @@ export function renderEntry(section: Section, index: number, ctx: RenderContext,
       return <ProjectRow e={section.entries[index]} ctx={ctx} />;
     case 'certificates':
       return <CertificateRow e={section.entries[index]} ctx={ctx} />;
+    case 'awards':
+      return <AwardRow e={section.entries[index]} ctx={ctx} />;
+    case 'publications':
+      return <PublicationRow e={section.entries[index]} ctx={ctx} />;
+    case 'references':
+      return <ReferenceRow e={section.entries[index]} ctx={ctx} />;
     default:
       return null;
   }
@@ -661,14 +756,13 @@ export function renderCompactBody(section: Section, ctx: RenderContext): ReactNo
   switch (section.kind) {
     case 'summary':
       return <RichText html={section.content} />;
+    case 'declaration':
+      return <DeclarationBody section={section} ctx={ctx} />;
     case 'skills':
       return <SkillsBody entries={section.entries} showLevels={section.showLevels} ctx={ctx} styleOverride={ctx.skillStyle} columns={section.columns} />;
     case 'languages':
       return <LanguagesBody entries={section.entries} ctx={ctx} columns={section.columns} />;
     case 'interests':
-    case 'awards':
-    case 'publications':
-    case 'references':
     case 'custom':
       return <SimpleBody entries={section.entries} ctx={ctx} />;
     default:
