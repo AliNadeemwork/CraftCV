@@ -143,6 +143,33 @@ const BULLET_RE = /^\s*[•·▪◦‣*\-–]\s+/;
 const isBullet = (l: string) => BULLET_RE.test(l);
 const stripBullet = (l: string) => l.replace(BULLET_RE, '').trim();
 
+/**
+ * Does this line look like a section heading (as opposed to body text)? Used to
+ * gate the tolerant match so ordinary sentences can't be mistaken for headings.
+ * True for ALL-CAPS lines, lines ending in a colon, or short Title-Case lines.
+ */
+function looksLikeHeading(raw: string): boolean {
+  const t = raw.trim();
+  if (!t || isBullet(t)) return false;
+  if (t.endsWith(':')) return true;
+  const body = t.replace(/[:•\-–—]+$/g, '').trim();
+  if (/[.!?,;]$/.test(body)) return false;
+  const letters = body.replace(/[^\p{L}]/gu, '');
+  if (!letters) return false;
+  const allCaps = letters === letters.toUpperCase() && /\p{Lu}/u.test(letters);
+  const wordTokens = body.split(/\s+/).filter((w) => /\p{L}/u.test(w));
+  const titleCase =
+    wordTokens.length > 0 &&
+    wordTokens.length <= 5 &&
+    body.length <= 40 &&
+    wordTokens.every((w) => /^[\p{Lu}\d(&/]/u.test(w));
+  return allCaps || titleCase;
+}
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function matchHeading(line: string): (typeof HEADINGS)[number] | null {
   const key = line
     .trim()
@@ -154,7 +181,20 @@ function matchHeading(line: string): (typeof HEADINGS)[number] | null {
   for (const h of HEADINGS) {
     if (h.words.includes(key)) return h;
   }
-  return null;
+  // Tolerant fallback: a heading-like line that contains a known heading term.
+  // Handles multi-word ("RELEVANT WORK EXPERIENCE"), decorated ("EDV –
+  // Fachkenntnisse") and compound ("Bildungsweg") headings. The word-start
+  // boundary lets a term match the head of a compound word.
+  if (!looksLikeHeading(line)) return null;
+  let best: { h: (typeof HEADINGS)[number]; len: number } | null = null;
+  for (const h of HEADINGS) {
+    for (const w of h.words) {
+      if (w.length < 4) continue;
+      const re = new RegExp(`(?:^|[^\\p{L}])${escapeRe(w)}`, 'iu');
+      if (re.test(key) && (!best || w.length > best.len)) best = { h, len: w.length };
+    }
+  }
+  return best?.h ?? null;
 }
 
 /**

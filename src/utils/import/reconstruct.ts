@@ -13,6 +13,31 @@ export interface RawItem {
 
 const BULLET_GLYPHS = /[•·▪◦‣]/;
 
+/**
+ * Join positioned glyph runs on one visual line into a string, inserting a space
+ * only where the horizontal gap between runs is wide enough to be a real word
+ * break. Many résumé templates apply letter-spacing (tracking) to headings, the
+ * name, phone numbers and dates, which makes pdf.js emit each glyph as its own
+ * run. Joining those unconditionally with a space produced "E DUCATION",
+ * "D a nish" and "+1 … 58 2 6"; measuring the gap collapses them correctly.
+ */
+function joinParts(parts: RawItem[]): string {
+  if (!parts.length) return '';
+  let out = parts[0].s;
+  for (let i = 1; i < parts.length; i++) {
+    const prev = parts[i - 1];
+    const cur = parts[i];
+    const gap = cur.x - (prev.x + prev.w);
+    const prevCharW = prev.w > 0 ? prev.w / Math.max(prev.s.replace(/\s/g, '').length, 1) : 0;
+    const curCharW = cur.w > 0 ? cur.w / Math.max(cur.s.replace(/\s/g, '').length, 1) : 0;
+    const ref = Math.max(prevCharW, curCharW) || 4;
+    // Real word spaces are ~0.25em; tracking between glyphs is much smaller.
+    const needSpace = gap > 0.3 * ref || /\s$/.test(out) || /^\s/.test(cur.s);
+    out += (needSpace ? ' ' : '') + cur.s;
+  }
+  return out.replace(/\s{2,}/g, ' ').trim();
+}
+
 // A light date test (kept local so this module has no parser dependency).
 // The end token may be a month name, a number, or a "present"-style word.
 const MON = 'jan|feb|mar|apr|may|jun|jul|aug|sep|o[ck]t|nov|de[cz]';
@@ -91,9 +116,9 @@ export function reconstructPage(items: RawItem[], pageWidth: number): string[] {
     const rightParts = splitI < 0 ? [] : parts.slice(splitI);
 
     const hasBullet = leftParts.some((p) => (p.w === 0 || p.w < 4) && BULLET_GLYPHS.test(p.s));
-    let content = leftParts.map((p) => p.s).join(' ').replace(/\s{2,}/g, ' ').trim();
+    let content = joinParts(leftParts);
     content = content.replace(new RegExp(`^\\s*${BULLET_GLYPHS.source}\\s*`), '').trim();
-    const note = rightParts.map((p) => p.s).join(' ').replace(/\s{2,}/g, ' ').trim();
+    const note = joinParts(rightParts);
 
     const gap = prevY !== null ? prevY - y : 0;
     prevY = y;
