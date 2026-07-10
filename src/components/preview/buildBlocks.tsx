@@ -37,6 +37,7 @@ function ContactLine({ p, ctx, icons }: { p: PersonalInfo; ctx: RenderContext; i
     items.push({ icon: icons ? <Globe size={11} style={{ flexShrink: 0 }} /> : null, text: d.value || d.label, href: d.href ? withHttp(d.href) : undefined });
   }
 
+  const justify = ctx.headerAlign === 'top' ? 'center' : ctx.headerAlign === 'right' ? 'flex-end' : 'flex-start';
   return (
     <div
       style={{
@@ -46,13 +47,24 @@ function ContactLine({ p, ctx, icons }: { p: PersonalInfo; ctx: RenderContext; i
         fontSize: '0.85em',
         color,
         marginTop: '0.4em',
+        justifyContent: justify,
       }}
     >
       {items.map((it, i) => (
         <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3em' }}>
           {it.icon}
           {it.href ? (
-            <a href={it.href} target="_blank" rel="noreferrer noopener" style={{ color: 'inherit', textDecoration: 'none' }}>{it.text}</a>
+            <a
+              href={it.href}
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{
+                color: ctx.linkBlue && !ctx.onAccent ? '#2563eb' : 'inherit',
+                textDecoration: ctx.linkUnderline ? 'underline' : 'none',
+              }}
+            >
+              {it.text}
+            </a>
           ) : (
             it.text
           )}
@@ -105,7 +117,7 @@ function Header({
   accent: string;
 }): ReactNode {
   const nameStyle: CSSProperties = {
-    fontSize: '1.9em',
+    fontSize: `${1.9 + (ctx.nameSizeOffset ?? 0)}em`,
     fontWeight: 700,
     lineHeight: 1.1,
     color: banner ? '#fff' : ctx.onAccent ? '#fff' : '#161616',
@@ -118,10 +130,21 @@ function Header({
     marginTop: '0.1em',
   };
 
+  const align = ctx.headerAlign ?? 'top';
+  const centered = align === 'top';
+  const textBlockAlign = align === 'right' ? 'right' : align === 'top' ? 'center' : 'left';
   const inner = (
-    <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
+    <div
+      style={{
+        display: 'flex',
+        gap: '1em',
+        alignItems: 'center',
+        flexDirection: centered ? 'column' : 'row',
+        justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
+      }}
+    >
       {ctx.showPhoto && <Photo p={p} ctx={ctx} />}
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, textAlign: textBlockAlign as CSSProperties['textAlign'] }}>
         <div style={nameStyle}>{p.name || 'Your Name'}</div>
         {p.jobTitle && <div style={titleStyle}>{p.jobTitle}</div>}
         <ContactLine p={p} ctx={{ ...ctx, onAccent: banner || ctx.onAccent }} icons={ctx.contactIcons} />

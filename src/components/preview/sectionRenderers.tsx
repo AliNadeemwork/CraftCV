@@ -229,6 +229,12 @@ export interface RenderContext {
   onAccent: boolean; // rendered on a solid accent sidebar → light text
   skillStyle: SkillStyle;
   datePosition: DatePosition;
+  headingIcons?: 'none' | 'outline' | 'filled';
+  headerAlign?: 'top' | 'left' | 'right';
+  linkUnderline?: boolean;
+  linkBlue?: boolean;
+  nameSizeOffset?: number;
+  headingSizeOffset?: number;
 }
 
 const muted = (onAccent: boolean) => (onAccent ? 'rgba(255,255,255,0.82)' : '#555');
@@ -251,7 +257,7 @@ export function SectionHeading({
 
   const common: CSSProperties = {
     fontWeight: 700,
-    fontSize: '1.02em',
+    fontSize: `${1.02 + (ctx.headingSizeOffset ?? 0)}em`,
     marginBottom: '0.4em',
     color,
   };

@@ -223,8 +223,11 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
         <Row label="Page size">
           <Segmented value={d.pageSize} onChange={(pageSize) => set({ pageSize: pageSize as PageSize })} options={[{ id: 'A4', label: 'A4' }, { id: 'Letter', label: 'Letter' }]} />
         </Row>
-        <Row label="Page margin">
-          <Slider value={d.margin} min={8} max={28} step={1} onChange={(margin) => set({ margin })} format={(v) => `${v}mm`} />
+        <Row label="Side margin">
+          <Slider value={d.marginX ?? d.margin} min={8} max={28} step={1} onChange={(marginX) => set({ marginX })} format={(v) => `${v}mm`} />
+        </Row>
+        <Row label="Top/bottom margin">
+          <Slider value={d.marginY ?? d.margin} min={8} max={28} step={1} onChange={(marginY) => set({ marginY })} format={(v) => `${v}mm`} />
         </Row>
         <Row label="Section spacing">
           <Slider value={d.sectionSpacing} min={8} max={34} step={1} onChange={(sectionSpacing) => set({ sectionSpacing })} format={(v) => `${v}px`} />
@@ -281,6 +284,9 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
             ]}
           />
         </Row>
+        <Row label="Heading size">
+          <Slider value={d.headingSizeOffset ?? 0} min={-0.1} max={0.4} step={0.02} onChange={(headingSizeOffset) => set({ headingSizeOffset })} format={(v) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))} />
+        </Row>
       </Group>
 
       {/* Entries */}
@@ -315,6 +321,22 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
 
       {/* Header & photo */}
       <Group id="header" title="Header & photo" registerRef={registerRef}>
+        <Row label="Header position">
+          <Segmented
+            value={d.headerPosition ?? 'left'}
+            onChange={(headerPosition) => set({ headerPosition })}
+            options={[{ id: 'top', label: 'Top' }, { id: 'left', label: 'Left' }, { id: 'right', label: 'Right' }]}
+          />
+        </Row>
+        <Row label="Name size">
+          <Slider value={d.nameSizeOffset ?? 0} min={-0.4} max={0.8} step={0.05} onChange={(nameSizeOffset) => set({ nameSizeOffset })} format={(v) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))} />
+        </Row>
+        <Row label="Link underline">
+          <Segmented value={(d.linkUnderline ?? false) ? 'on' : 'off'} onChange={(v) => set({ linkUnderline: v === 'on' })} options={[{ id: 'off', label: 'Off' }, { id: 'on', label: 'On' }]} />
+        </Row>
+        <Row label="Link colour">
+          <Segmented value={(d.linkBlue ?? false) ? 'on' : 'off'} onChange={(v) => set({ linkBlue: v === 'on' })} options={[{ id: 'off', label: 'Default' }, { id: 'on', label: 'Blue' }]} />
+        </Row>
         <Row label="Contact icons">
           <Segmented value={(d.contactIcons ?? true) ? 'on' : 'off'} onChange={(v) => set({ contactIcons: v === 'on' })} options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]} />
         </Row>

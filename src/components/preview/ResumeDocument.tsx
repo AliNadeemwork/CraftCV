@@ -38,6 +38,10 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
   const fontPx = template.baseFont * resume.design.fontScale;
   const { width: pageW, height: pageH } = metrics.page;
   const margin = metrics.marginPx;
+  // Independent horizontal / vertical margins (fall back to the uniform value).
+  const marginX = resume.design.marginX != null ? Math.round(resume.design.marginX * 3.7795) : margin;
+  const marginY = resume.design.marginY != null ? Math.round(resume.design.marginY * 3.7795) : margin;
+  const padCss = `${marginY}px ${marginX}px`;
 
   // Resolve the effective layout: a per-resume override wins over the template's.
   const layoutOverride = resume.design.layout ?? 'auto';
@@ -57,9 +61,9 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
   const sidebarW = twoCol ? Math.round(pageW * sidebarWidthFrac) : 0;
   const mainOuterW = twoCol ? pageW - sidebarW : pageW;
 
-  const mainContentW = mainOuterW - margin * 2;
-  const sideContentW = sidebarW - margin * 2;
-  const contentH = pageH - margin * 2;
+  const mainContentW = mainOuterW - marginX * 2;
+  const sideContentW = sidebarW - marginX * 2;
+  const contentH = pageH - marginY * 2;
 
   const tracks = useMemo(
     () =>
@@ -77,6 +81,12 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
               : resume.design.headingCase,
           skillStyle: resume.design.skillStyle ?? 'dots',
           datePosition: resume.design.datePosition ?? 'right',
+          headingIcons: resume.design.headingIcons ?? 'none',
+          headerAlign: resume.design.headerPosition ?? 'left',
+          linkUnderline: resume.design.linkUnderline ?? false,
+          linkBlue: resume.design.linkBlue ?? false,
+          nameSizeOffset: resume.design.nameSizeOffset ?? 0,
+          headingSizeOffset: resume.design.headingSizeOffset ?? 0,
         },
         sectionSpacing: resume.design.sectionSpacing,
         showPhoto: resume.design.showPhoto,
@@ -167,9 +177,9 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
         className="no-print-nothing"
         style={{
           position: 'absolute',
-          left: margin,
-          right: margin,
-          bottom: Math.max(6, Math.round(margin / 2)),
+          left: marginX,
+          right: marginX,
+          bottom: Math.max(6, Math.round(marginY / 2)),
           display: 'flex',
           justifyContent: 'space-between',
           gap: '1em',
@@ -208,7 +218,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
           style={{
             width: sidebarW,
             background: sidebarFill,
-            padding: margin,
+            padding: padCss,
             boxSizing: 'border-box',
             color: template.sidebarFill === 'solid' ? '#fff' : '#1a1a1a',
           }}
@@ -217,7 +227,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
         </div>
       );
       const mainEl = (
-        <div style={{ width: mainOuterW, padding: margin, boxSizing: 'border-box' }}>
+        <div style={{ width: mainOuterW, padding: padCss, boxSizing: 'border-box' }}>
           {renderBlocks(tracks.main, mainIdx)}
         </div>
       );
@@ -247,7 +257,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
       <div
         key={p}
         className="cv-page"
-        style={{ width: pageW, height: pageH, padding: margin, boxSizing: 'border-box' }}
+        style={{ width: pageW, height: pageH, padding: padCss, boxSizing: 'border-box' }}
       >
         {renderBlocks(tracks.main, mainIdx)}
         {footerEl(p)}

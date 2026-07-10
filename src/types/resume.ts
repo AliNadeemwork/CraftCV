@@ -366,6 +366,24 @@ export interface Design {
   contactIcons?: boolean;
   layout?: LayoutOverride;
   footer?: FooterOptions;
+
+  // --- Phase-3 customize (all optional; undefined = current look) ---
+  /** Independent horizontal (L/R) margin in mm; falls back to `margin`. */
+  marginX?: number;
+  /** Independent vertical (T/B) margin in mm; falls back to `margin`. */
+  marginY?: number;
+  /** Header text alignment: top-centered (default), left, or right. */
+  headerPosition?: 'top' | 'left' | 'right';
+  /** Section-heading icons. */
+  headingIcons?: 'none' | 'outline' | 'filled';
+  /** Font-size offsets (em) added to base for these roles. */
+  nameSizeOffset?: number;
+  headingSizeOffset?: number;
+  /** Link styling. */
+  linkUnderline?: boolean;
+  linkBlue?: boolean;
+  /** Custom footer text zones (override the toggle footer when set). */
+  footerCustom?: { left: string; center: string; right: string } | null;
 }
 
 // --- Meta ------------------------------------------------------------------
