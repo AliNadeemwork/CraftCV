@@ -195,6 +195,10 @@ interface BaseSection {
 export interface SummarySection extends BaseSection {
   kind: 'summary';
   content: string; // rich-text HTML
+  /** Render the summary inside the header area instead of as its own section. */
+  displayInHeader?: boolean;
+  /** Show the "Summary" heading above the text (standalone mode). Default true. */
+  showHeading?: boolean;
 }
 /** Per-section display options (FlowCV "Section Customizations"). */
 export interface ExperienceSection extends BaseSection {
@@ -258,6 +262,7 @@ export interface PublicationsSection extends BaseSection {
 export interface ReferencesSection extends BaseSection {
   kind: 'references';
   entries: ReferenceEntry[];
+  subtitleFirst?: boolean;
 }
 export interface DeclarationSection extends BaseSection, DeclarationData {
   kind: 'declaration';
@@ -384,6 +389,8 @@ export interface Design {
   linkBlue?: boolean;
   /** Custom footer text zones (override the toggle footer when set). */
   footerCustom?: { left: string; center: string; right: string } | null;
+  /** Bold the name in the header. Default true (current look). */
+  nameBold?: boolean;
 }
 
 // --- Meta ------------------------------------------------------------------

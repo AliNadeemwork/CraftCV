@@ -287,6 +287,13 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
         <Row label="Heading size">
           <Slider value={d.headingSizeOffset ?? 0} min={-0.1} max={0.4} step={0.02} onChange={(headingSizeOffset) => set({ headingSizeOffset })} format={(v) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))} />
         </Row>
+        <Row label="Icons">
+          <Segmented
+            value={d.headingIcons ?? 'none'}
+            onChange={(headingIcons) => set({ headingIcons })}
+            options={[{ id: 'none', label: 'None' }, { id: 'outline', label: 'Outline' }, { id: 'filled', label: 'Filled' }]}
+          />
+        </Row>
       </Group>
 
       {/* Entries */}
@@ -331,6 +338,9 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
         <Row label="Name size">
           <Slider value={d.nameSizeOffset ?? 0} min={-0.4} max={0.8} step={0.05} onChange={(nameSizeOffset) => set({ nameSizeOffset })} format={(v) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))} />
         </Row>
+        <Row label="Name weight">
+          <Segmented value={(d.nameBold ?? true) ? 'bold' : 'normal'} onChange={(v) => set({ nameBold: v === 'bold' })} options={[{ id: 'bold', label: 'Bold' }, { id: 'normal', label: 'Normal' }]} />
+        </Row>
         <Row label="Link underline">
           <Segmented value={(d.linkUnderline ?? false) ? 'on' : 'off'} onChange={(v) => set({ linkUnderline: v === 'on' })} options={[{ id: 'off', label: 'Off' }, { id: 'on', label: 'On' }]} />
         </Row>
@@ -343,6 +353,11 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
         <Row label="Show photo">
           <Segmented value={d.showPhoto ? 'on' : 'off'} onChange={(v) => set({ showPhoto: v === 'on' })} options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]} />
         </Row>
+        {d.showPhoto && !resume.personalInfo.photo && (
+          <p className="px-1 text-[11px] text-ink-soft/70">
+            No photo added yet — upload one under Content → Personal details for it to appear.
+          </p>
+        )}
         {d.showPhoto && (
           <>
             <Row label="Photo shape">
@@ -386,6 +401,41 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
             />
           </Row>
         ))}
+        <div className="mt-2 border-t border-black/5 pt-2 dark:border-white/5">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-ink-soft">Custom footer</span>
+            <Segmented
+              value={d.footerCustom ? 'on' : 'off'}
+              onChange={(v) => set({ footerCustom: v === 'on' ? (d.footerCustom ?? { left: '', center: '', right: '' }) : null })}
+              options={[{ id: 'off', label: 'Off' }, { id: 'on', label: 'On' }]}
+            />
+          </div>
+          {d.footerCustom && (
+            <div className="space-y-1.5">
+              {(['left', 'center', 'right'] as const).map((zone) => (
+                <input
+                  key={zone}
+                  value={d.footerCustom?.[zone] ?? ''}
+                  onChange={(e) =>
+                    set({
+                      footerCustom: {
+                        left: d.footerCustom?.left ?? '',
+                        center: d.footerCustom?.center ?? '',
+                        right: d.footerCustom?.right ?? '',
+                        [zone]: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder={`${zone[0].toUpperCase()}${zone.slice(1)} text`}
+                  className="focusable w-full rounded-md border border-black/10 px-2 py-1 text-xs dark:border-white/10 dark:bg-neutral-800"
+                />
+              ))}
+              <p className="text-[10px] text-ink-soft/60">
+                Tokens: {'{name}'} {'{email}'} {'{page}'} {'{pages}'}. Overrides the toggles above.
+              </p>
+            </div>
+          )}
+        </div>
       </Group>
 
       {/* Section customizations */}
@@ -412,7 +462,7 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
   );
 }
 
-const SECTION_HAS_OPTIONS = new Set(['experience', 'courses', 'organisations', 'education', 'skills', 'languages', 'certificates', 'interests']);
+const SECTION_HAS_OPTIONS = new Set(['summary', 'experience', 'courses', 'organisations', 'education', 'skills', 'languages', 'certificates', 'interests', 'projects', 'publications', 'references']);
 
 function SectionOptions({ section, onPatch }: { section: Section; onPatch: (patch: Partial<Section>) => void }) {
   const kind = section.kind;
@@ -447,6 +497,45 @@ function SectionOptions({ section, onPatch }: { section: Section; onPatch: (patc
             value={(section as { subtitleFirst?: boolean }).subtitleFirst ? 'sub' : 'title'}
             onChange={(v) => onPatch({ subtitleFirst: v === 'sub' } as Partial<Section>)}
             options={[{ id: 'title', label: 'Degree · School' }, { id: 'sub', label: 'School · Degree' }]}
+          />
+        </Row>
+      )}
+
+      {kind === 'summary' && (
+        <>
+          <Row label="Show heading">
+            <Segmented
+              value={(section as { showHeading?: boolean }).showHeading === false ? 'off' : 'on'}
+              onChange={(v) => onPatch({ showHeading: v === 'on' } as Partial<Section>)}
+              options={[{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }]}
+            />
+          </Row>
+          <Row label="Display in header">
+            <Segmented
+              value={(section as { displayInHeader?: boolean }).displayInHeader ? 'on' : 'off'}
+              onChange={(v) => onPatch({ displayInHeader: v === 'on' } as Partial<Section>)}
+              options={[{ id: 'off', label: 'Off' }, { id: 'on', label: 'On' }]}
+            />
+          </Row>
+        </>
+      )}
+
+      {(kind === 'projects' || kind === 'publications') && (
+        <Row label="Order">
+          <Segmented
+            value={(section as { subtitleFirst?: boolean }).subtitleFirst ? 'sub' : 'title'}
+            onChange={(v) => onPatch({ subtitleFirst: v === 'sub' } as Partial<Section>)}
+            options={[{ id: 'title', label: 'Title first' }, { id: 'sub', label: 'Subtitle first' }]}
+          />
+        </Row>
+      )}
+
+      {kind === 'references' && (
+        <Row label="Order">
+          <Segmented
+            value={(section as { subtitleFirst?: boolean }).subtitleFirst ? 'sub' : 'title'}
+            onChange={(v) => onPatch({ subtitleFirst: v === 'sub' } as Partial<Section>)}
+            options={[{ id: 'title', label: 'Name · Org' }, { id: 'sub', label: 'Org · Name' }]}
           />
         </Row>
       )}

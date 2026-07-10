@@ -87,6 +87,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
           linkBlue: resume.design.linkBlue ?? false,
           nameSizeOffset: resume.design.nameSizeOffset ?? 0,
           headingSizeOffset: resume.design.headingSizeOffset ?? 0,
+          nameBold: resume.design.nameBold ?? true,
         },
         sectionSpacing: resume.design.sectionSpacing,
         showPhoto: resume.design.showPhoto,
@@ -169,9 +170,39 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
     zIndex: -1,
   };
 
+  const fc = resume.design.footerCustom;
+  const hasCustomFooter = !!fc && (!!fc.left || !!fc.center || !!fc.right);
   const footer = resume.design.footer;
-  const showFooter = !!footer && (footer.pageNumbers || footer.name || footer.email);
+  const showFooter = hasCustomFooter || (!!footer && (footer.pageNumbers || footer.name || footer.email));
+  const fillFooterVars = (s: string, pageIndex: number) =>
+    s
+      .replace(/\{name\}/g, resume.personalInfo.name)
+      .replace(/\{email\}/g, resume.personalInfo.email)
+      .replace(/\{page\}/g, String(pageIndex + 1))
+      .replace(/\{pages\}/g, String(pageCount));
   const footerEl = (pageIndex: number) =>
+    hasCustomFooter && fc ? (
+      <div
+        className="no-print-nothing"
+        style={{
+          position: 'absolute',
+          left: marginX,
+          right: marginX,
+          bottom: Math.max(6, Math.round(marginY / 2)),
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: '1em',
+          fontSize: '0.7em',
+          color: '#8a8a8a',
+          borderTop: '1px solid #ececec',
+          paddingTop: 4,
+        }}
+      >
+        <span>{fillFooterVars(fc.left, pageIndex)}</span>
+        <span style={{ textAlign: 'center' }}>{fillFooterVars(fc.center, pageIndex)}</span>
+        <span style={{ textAlign: 'right' }}>{fillFooterVars(fc.right, pageIndex)}</span>
+      </div>
+    ) :
     showFooter && footer ? (
       <div
         className="no-print-nothing"

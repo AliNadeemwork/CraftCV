@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type { FontFamilyId, PersonalInfo, PhotoShape, Resume, Section } from '../../types/resume';
+import type { FontFamilyId, PersonalInfo, PhotoShape, Resume, Section, SummarySection } from '../../types/resume';
 import type { Layout, TemplateConfig, TitleStyle } from '../templates/templates';
 import { fontStack } from '../../utils/design';
 import type { RenderContext } from './sectionRenderers';
@@ -110,15 +110,17 @@ function Header({
   ctx,
   banner,
   accent,
+  summaryHtml,
 }: {
   p: PersonalInfo;
   ctx: RenderContext & HeaderExtras;
   banner: boolean;
   accent: string;
+  summaryHtml?: string;
 }): ReactNode {
   const nameStyle: CSSProperties = {
     fontSize: `${1.9 + (ctx.nameSizeOffset ?? 0)}em`,
-    fontWeight: 700,
+    fontWeight: ctx.nameBold === false ? 400 : 700,
     lineHeight: 1.1,
     color: banner ? '#fff' : ctx.onAccent ? '#fff' : '#161616',
     fontFamily: ctx.nameFont ?? undefined,
@@ -148,6 +150,18 @@ function Header({
         <div style={nameStyle}>{p.name || 'Your Name'}</div>
         {p.jobTitle && <div style={titleStyle}>{p.jobTitle}</div>}
         <ContactLine p={p} ctx={{ ...ctx, onAccent: banner || ctx.onAccent }} icons={ctx.contactIcons} />
+        {summaryHtml && (
+          <div
+            className="cv-rich"
+            style={{
+              marginTop: '0.5em',
+              fontSize: '0.9em',
+              color: banner || ctx.onAccent ? 'rgba(255,255,255,0.92)' : '#444',
+              textAlign: textBlockAlign as CSSProperties['textAlign'],
+            }}
+            dangerouslySetInnerHTML={{ __html: summaryHtml }}
+          />
+        )}
       </div>
     </div>
   );
@@ -211,7 +225,7 @@ function sectionBlocks(
 ): Block[] {
   const heading: Block = {
     key: `${section.id}-h`,
-    node: <SectionHeading title={section.title} ctx={ctx} />,
+    node: <SectionHeading title={section.title} kind={section.kind} ctx={ctx} />,
     keepWithNext: true,
     spacingBefore: spacing,
   };
@@ -278,13 +292,15 @@ function sectionBlocks(
   // Compact section → heading + body as one keep-together block.
   const body = renderCompactBody(section, ctx);
   if (!body) return [];
+  // Summary can suppress its heading (Section Customizations → "Show heading").
+  const hideHeading = section.kind === 'summary' && (section as SummarySection).showHeading === false;
   return [
     {
       key: `${section.id}-body`,
       node: (
         <div>
-          <SectionHeading title={section.title} ctx={ctx} />
-          <div style={{ marginTop: 4 }}>{body}</div>
+          {!hideHeading && <SectionHeading title={section.title} kind={section.kind} ctx={ctx} />}
+          <div style={{ marginTop: hideHeading ? 0 : 4 }}>{body}</div>
         </div>
       ),
       spacingBefore: spacing,
@@ -299,7 +315,14 @@ export interface TrackSet {
 
 export function buildTracks(args: BuildArgs): TrackSet {
   const { resume, template, accent, ctxBase, sectionSpacing, showPhoto, photoShape, photoSize, photoBorder, contactIcons, nameFont, layout } = args;
-  const visible = resume.sections.filter((s) => s.visible);
+  let visible = resume.sections.filter((s) => s.visible);
+
+  // Summary with "display in header" is lifted out of the section flow and
+  // rendered inside the header block instead.
+  const headerSummarySec = visible.find(
+    (s): s is SummarySection => s.kind === 'summary' && !!(s as SummarySection).displayInHeader && !!s.content,
+  );
+  if (headerSummarySec) visible = visible.filter((s) => s.id !== headerSummarySec.id);
 
   const mainCtx: RenderContext = {
     ...ctxBase,
@@ -330,6 +353,7 @@ export function buildTracks(args: BuildArgs): TrackSet {
         ctx={headerCtx}
         banner={layout === 'banner'}
         accent={accent}
+        summaryHtml={headerSummarySec?.content}
       />
     ),
     spacingBefore: 0,

@@ -18,6 +18,29 @@ import type { DatePosition, SkillStyle, DisplayOptions, SubinfoStyle, CategorySe
 import type { TitleStyle } from '../templates/templates';
 import { formatRange, formatDateValue } from '../../utils/date';
 import { isRichTextEmpty } from '../../utils/sanitize';
+import {
+  Briefcase, GraduationCap, Wrench, Languages as LangIcon, FolderGit2, Award,
+  BookOpen, Users, Heart, FileText, Trophy, ScrollText, PenLine, User,
+} from 'lucide-react';
+
+/** Icon shown next to a section heading (when heading icons are enabled). */
+const HEADING_ICONS: Record<string, typeof Briefcase> = {
+  summary: User,
+  experience: Briefcase,
+  education: GraduationCap,
+  skills: Wrench,
+  languages: LangIcon,
+  projects: FolderGit2,
+  certificates: Award,
+  courses: BookOpen,
+  organisations: Users,
+  interests: Heart,
+  awards: Trophy,
+  publications: ScrollText,
+  references: Users,
+  declaration: PenLine,
+  custom: FileText,
+};
 
 // --- Shared display-style component (Grid/Rows/Compact/Bubble/Level) --------
 
@@ -235,6 +258,7 @@ export interface RenderContext {
   linkBlue?: boolean;
   nameSizeOffset?: number;
   headingSizeOffset?: number;
+  nameBold?: boolean;
 }
 
 const muted = (onAccent: boolean) => (onAccent ? 'rgba(255,255,255,0.82)' : '#555');
@@ -247,13 +271,34 @@ export function RichText({ html }: { html: string }): ReactNode {
 
 export function SectionHeading({
   title,
+  kind,
   ctx,
 }: {
   title: string;
+  kind?: string;
   ctx: RenderContext;
 }): ReactNode {
   const label = ctx.headingCase === 'upper' ? title.toUpperCase() : title;
   const color = ctx.onAccent ? '#fff' : ctx.accent;
+  const Icon = ctx.headingIcons && ctx.headingIcons !== 'none' && kind ? HEADING_ICONS[kind] : undefined;
+  const iconEl = Icon ? (
+    <Icon
+      size={13}
+      style={{ flexShrink: 0, marginRight: '0.4em', verticalAlign: '-1px' }}
+      fill={ctx.headingIcons === 'filled' ? (ctx.onAccent ? '#fff' : ctx.accent) : 'none'}
+      strokeWidth={ctx.headingIcons === 'filled' ? 1.5 : 2}
+    />
+  ) : null;
+  const withIcon = (node: ReactNode) =>
+    iconEl ? (
+      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+        {iconEl}
+        {node}
+      </span>
+    ) : (
+      node
+    );
+  const content = withIcon(label);
 
   const common: CSSProperties = {
     fontWeight: 700,
@@ -272,7 +317,7 @@ export function SectionHeading({
             paddingBottom: '0.15em',
           }}
         >
-          {label}
+          {content}
         </h3>
       );
     case 'accentbar':
@@ -287,7 +332,7 @@ export function SectionHeading({
               borderRadius: 2,
             }}
           />
-          {label}
+          {content}
         </h3>
       );
     case 'caps':
@@ -302,7 +347,7 @@ export function SectionHeading({
             paddingBottom: '0.3em',
           }}
         >
-          {label}
+          {content}
         </h3>
       );
     case 'serif':
@@ -317,7 +362,7 @@ export function SectionHeading({
             paddingBottom: '0.2em',
           }}
         >
-          {label}
+          {content}
         </h3>
       );
     case 'block':
@@ -334,11 +379,11 @@ export function SectionHeading({
             fontSize: '0.8em',
           }}
         >
-          {label}
+          {content}
         </h3>
       );
     case 'plain':
-      return <h3 style={common}>{label}</h3>;
+      return <h3 style={common}>{content}</h3>;
   }
 }
 
@@ -351,7 +396,7 @@ function EntryHead({
   ctx,
 }: {
   primary: ReactNode;
-  secondary?: string;
+  secondary?: ReactNode;
   right?: string;
   ctx: RenderContext;
 }): ReactNode {
@@ -416,12 +461,14 @@ function EducationRow({ e, ctx, subtitleFirst }: { e: EducationEntry; ctx: Rende
   );
 }
 
-function ProjectRow({ e, ctx }: { e: ProjectEntry; ctx: RenderContext }): ReactNode {
+function ProjectRow({ e, ctx, subtitleFirst }: { e: ProjectEntry; ctx: RenderContext; subtitleFirst?: boolean }): ReactNode {
+  const name = e.name || 'Project';
+  const [primary, secondary] = subtitleFirst ? [e.link || name, e.link ? name : ''] : [name, e.link];
   return (
     <div>
       <EntryHead
-        primary={e.name || 'Project'}
-        secondary={e.link}
+        primary={primary}
+        secondary={secondary}
         right={formatRange(e.date, ctx.dateFormat)}
         ctx={ctx}
       />
@@ -470,13 +517,14 @@ function AwardRow({ e, ctx }: { e: AwardEntry; ctx: RenderContext }): ReactNode 
   );
 }
 
-function PublicationRow({ e, ctx }: { e: PublicationEntry; ctx: RenderContext }): ReactNode {
+function PublicationRow({ e, ctx, subtitleFirst }: { e: PublicationEntry; ctx: RenderContext; subtitleFirst?: boolean }): ReactNode {
   const date = formatYMD(e, ctx.dateFormat);
+  const title = <TitleLink text={e.title || 'Publication'} href={e.link} />;
   return (
     <div>
       <EntryHead
-        primary={<TitleLink text={e.title || 'Publication'} href={e.link} />}
-        secondary={e.publisher}
+        primary={subtitleFirst && e.publisher ? e.publisher : title}
+        secondary={subtitleFirst && e.publisher ? title : e.publisher}
         right={date}
         ctx={ctx}
       />
@@ -485,14 +533,17 @@ function PublicationRow({ e, ctx }: { e: PublicationEntry; ctx: RenderContext })
   );
 }
 
-function ReferenceRow({ e, ctx }: { e: ReferenceEntry; ctx: RenderContext }): ReactNode {
+function ReferenceRow({ e, ctx, subtitleFirst }: { e: ReferenceEntry; ctx: RenderContext; subtitleFirst?: boolean }): ReactNode {
   const sub = [e.jobTitle, e.organization].filter(Boolean).join(', ');
+  const nameEl = <TitleLink text={e.name || 'Reference'} href={e.link} />;
+  const heading = subtitleFirst && sub ? sub : nameEl;
+  const subLine = subtitleFirst && sub ? nameEl : sub;
   return (
     <div>
       <div style={{ fontWeight: 700, color: strong(ctx.onAccent) }}>
-        <TitleLink text={e.name || 'Reference'} href={e.link} />
+        {heading}
       </div>
-      {sub && <div style={{ color: ctx.onAccent ? 'rgba(255,255,255,0.9)' : ctx.accent, fontWeight: 600 }}>{sub}</div>}
+      {subLine && <div style={{ color: ctx.onAccent ? 'rgba(255,255,255,0.9)' : ctx.accent, fontWeight: 600 }}>{subLine}</div>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2em 0.8em', color: muted(ctx.onAccent), fontSize: '0.9em' }}>
         {e.email && <a href={`mailto:${e.email}`} style={{ color: 'inherit', textDecoration: 'none' }}>{e.email}</a>}
         {e.phone && <a href={`tel:${e.phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit', textDecoration: 'none' }}>{e.phone}</a>}
@@ -725,15 +776,15 @@ export function renderEntry(section: Section, index: number, ctx: RenderContext,
     case 'education':
       return <EducationRow e={section.entries[index]} ctx={ctx} subtitleFirst={section.subtitleFirst} />;
     case 'projects':
-      return <ProjectRow e={section.entries[index]} ctx={ctx} />;
+      return <ProjectRow e={section.entries[index]} ctx={ctx} subtitleFirst={section.subtitleFirst} />;
     case 'certificates':
       return <CertificateRow e={section.entries[index]} ctx={ctx} />;
     case 'awards':
       return <AwardRow e={section.entries[index]} ctx={ctx} />;
     case 'publications':
-      return <PublicationRow e={section.entries[index]} ctx={ctx} />;
+      return <PublicationRow e={section.entries[index]} ctx={ctx} subtitleFirst={section.subtitleFirst} />;
     case 'references':
-      return <ReferenceRow e={section.entries[index]} ctx={ctx} />;
+      return <ReferenceRow e={section.entries[index]} ctx={ctx} subtitleFirst={section.subtitleFirst} />;
     default:
       return null;
   }
