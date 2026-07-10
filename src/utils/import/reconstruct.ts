@@ -67,8 +67,96 @@ const isDateNote = (note: string): boolean =>
  * continuation apart from a new title/company), and emit captured locations with
  * a LOC marker.
  */
+/**
+ * Detect a two-column layout by finding a vertical whitespace "gutter" that most
+ * text rows respect, with real content left-aligned on both sides of it. Returns
+ * the gutter x, or null for a single-column page. Guards against false positives
+ * from right-aligned date margins (where the right side hugs the page edge rather
+ * than starting just after the gutter).
+ */
+function detectGutter(items: RawItem[], pageWidth: number): number | null {
+  // Build visual rows (merge baselines within 2px), keep each row's x-intervals.
+  const rowMap = new Map<number, { x0: number; x1: number }[]>();
+  for (const it of items) {
+    if (!it.s.trim()) continue;
+    let key = it.y;
+    for (const k of rowMap.keys()) {
+      if (Math.abs(k - it.y) <= 2) { key = k; break; }
+    }
+    if (!rowMap.has(key)) rowMap.set(key, []);
+    rowMap.get(key)!.push({ x0: it.x, x1: it.x + Math.max(it.w, 1) });
+  }
+  const rows = [...rowMap.values()];
+  if (rows.length < 8) return null; // too short to judge reliably
+
+  const total = rows.length;
+  const bin = 3;
+  const band0 = pageWidth * 0.2;
+  const band1 = pageWidth * 0.8;
+  // Collect every contiguous vertical band that almost no row crosses.
+  const candidates: { g: number; width: number }[] = [];
+  let runStart: number | null = null;
+  for (let x = band0; x <= band1 + bin; x += bin) {
+    const covered = rows.filter((r) => r.some((iv) => iv.x0 <= x && iv.x1 >= x)).length;
+    const isGap = x <= band1 && covered <= total * 0.08;
+    if (isGap) {
+      if (runStart === null) runStart = x;
+    } else if (runStart !== null) {
+      const w = x - runStart;
+      if (w >= 10) candidates.push({ g: runStart + w / 2, width: w });
+      runStart = null;
+    }
+  }
+
+  // Score each candidate as a column boundary; keep the strongest valid one.
+  let best: { g: number; score: number } | null = null;
+  for (const cand of candidates) {
+    const g = cand.g;
+    const leftRows = rows.filter((r) => r.some((iv) => (iv.x0 + iv.x1) / 2 < g));
+    const rightRows = rows.filter((r) => r.some((iv) => (iv.x0 + iv.x1) / 2 >= g));
+    // Both columns must be substantially, but not universally, populated: a
+    // date margin has left text on EVERY row (no right-only rows).
+    if (leftRows.length < total * 0.3 || leftRows.length > total * 0.92) continue;
+    if (rightRows.length < total * 0.3 || rightRows.length > total * 0.92) continue;
+    // The right side must be a LEFT-ALIGNED column (line starts cluster just
+    // right of the gutter), not a right-aligned date margin.
+    const aligned = rightRows.filter((r) => {
+      const x0 = Math.min(...r.filter((iv) => (iv.x0 + iv.x1) / 2 >= g).map((iv) => iv.x0));
+      return x0 <= g + pageWidth * 0.12;
+    }).length;
+    const ratio = aligned / rightRows.length;
+    if (ratio < 0.6) continue;
+    if (!best || ratio > best.score) best = { g, score: ratio };
+  }
+  return best?.g ?? null;
+}
+
 export function reconstructPage(items: RawItem[], pageWidth: number): string[] {
   if (!items.length) return [];
+
+  const gutter = detectGutter(items, pageWidth);
+  if (gutter != null) {
+    const left = items.filter((it) => it.x + it.w / 2 < gutter);
+    const right = items.filter((it) => it.x + it.w / 2 >= gutter);
+    const leftMin = Math.min(...left.map((i) => i.x), gutter);
+    const rightMax = Math.max(...right.map((i) => i.x + i.w), gutter);
+    const leftBlock = reconstructRegion(left, leftMin, gutter);
+    const rightBlock = reconstructRegion(right, gutter, rightMax);
+    // Read the main (higher-volume) column first so the name/summary and the
+    // header block come from it, not from a narrow sidebar.
+    const leftChars = left.reduce((n, i) => n + i.s.length, 0);
+    const rightChars = right.reduce((n, i) => n + i.s.length, 0);
+    return leftChars >= rightChars
+      ? [...leftBlock, ...rightBlock]
+      : [...rightBlock, ...leftBlock];
+  }
+  return reconstructRegion(items, 0, pageWidth);
+}
+
+/** Reconstruct clean lines for one column/region bounded by [regionLeft, regionRight]. */
+function reconstructRegion(items: RawItem[], regionLeft: number, regionRight: number): string[] {
+  if (!items.length) return [];
+  const regionWidth = regionRight - regionLeft;
 
   // Group items into visual lines by y (merge baselines within 2px).
   const lineMap = new Map<number, RawItem[]>();
@@ -85,7 +173,7 @@ export function reconstructPage(items: RawItem[], pageWidth: number): string[] {
     lineMap.get(key)!.push(it);
   }
 
-  const marginX = pageWidth * 0.7;
+  const marginX = regionLeft + regionWidth * 0.7;
   const ys = [...lineMap.keys()].sort((a, b) => b - a); // top → bottom
 
   interface Line {

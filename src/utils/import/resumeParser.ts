@@ -53,6 +53,22 @@ const ENTRY_KINDS = new Set(['experience', 'education', 'projects', 'courses', '
 
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
 const PHONE_RE = /(\+?\d[\d\s().[\]\-/]{6,}\d)/;
+
+/**
+ * Find a phone number, rejecting things that merely look numeric — most
+ * importantly date ranges like "2018 - 2021" (8 digits). Real phone numbers
+ * carry at least 9 digits; a bare 8-digit year range is never a phone.
+ */
+function findPhone(hay: string): string {
+  const candidates = hay.match(/\+?\d[\d\s().[\]\-/]{6,}\d/g) ?? [];
+  for (const c of candidates) {
+    const digits = c.replace(/\D/g, '');
+    if (digits.length < 9) continue;
+    if (/^(?:19|20)\d{2}(?:19|20)\d{2}$/.test(digits)) continue; // year range
+    return c.trim();
+  }
+  return '';
+}
 const URL_RE = /((https?:\/\/)?(www\.)?[\w-]+\.[a-z]{2,}(\/[^\s]*)?)/i;
 const LINKEDIN_RE = /((https?:\/\/)?(www\.)?linkedin\.com\/[^\s]+)/i;
 
@@ -236,12 +252,14 @@ export function parseResume(rawText: string): ParseResult {
     .split('\n')
     .map((l) => l.trimEnd());
 
-  // Drop page footers/headers like "Ali Nadeem   1/2", "1 / 2", "Page 1 of 2".
+  // Drop page footers/headers: "Ali Nadeem   1/2", "1 / 2", "Page 1 of 2", and
+  // standalone page numbers ("2") that survive between pages.
   const lines = allLines
     .filter(
       (l) =>
         !/^(.{0,60}?\s)?\d{1,2}\s*\/\s*\d{1,2}\s*$/.test(l) &&
-        !/^page\s+\d+(\s+of\s+\d+)?$/i.test(l.trim()),
+        !/^page\s+\d+(\s+of\s+\d+)?$/i.test(l.trim()) &&
+        !/^\d{1,2}$/.test(l.trim()),
     )
     .flatMap(splitGluedHeading);
 
@@ -252,7 +270,7 @@ export function parseResume(rawText: string): ParseResult {
     if (lines[cursor].trim()) header.push(lines[cursor].trim());
     cursor++;
   }
-  applyHeader(resume, header);
+  applyHeader(resume, header, lines);
 
   // 2. Section blocks.
   const detected: string[] = [];
@@ -289,13 +307,17 @@ export function parseResume(rawText: string): ParseResult {
   return { resume, detectedHeadings: detected, rawText: displayText };
 }
 
-function applyHeader(resume: Resume, header: string[]): void {
+function applyHeader(resume: Resume, header: string[], allLines: string[] = header): void {
   const joined = header.join('  ');
-  const email = EMAIL_RE.exec(joined)?.[0] ?? '';
-  const linkedin = LINKEDIN_RE.exec(joined)?.[0]?.replace(/^https?:\/\//, '') ?? '';
-  const phone = PHONE_RE.exec(joined.replace(email, ''))?.[0]?.trim() ?? '';
+  // Contact fields can live in a sidebar that is read after the first heading
+  // (two-column CVs), so fall back to scanning the whole document for them.
+  const full = allLines.join('  ');
+  const email = EMAIL_RE.exec(joined)?.[0] ?? EMAIL_RE.exec(full)?.[0] ?? '';
+  const linkedin =
+    (LINKEDIN_RE.exec(joined)?.[0] ?? LINKEDIN_RE.exec(full)?.[0] ?? '').replace(/^https?:\/\//, '');
+  const phone = findPhone(joined.replace(email, '')) || findPhone(full.replace(email, ''));
   let website = '';
-  const urlHay = joined.replace(email, '').replace(linkedin, '');
+  const urlHay = full.replace(email, '').replace(linkedin, '');
   const urlM = URL_RE.exec(urlHay);
   if (urlM && !/@/.test(urlM[0])) website = urlM[0].replace(/^https?:\/\//, '');
 
@@ -312,15 +334,52 @@ function applyHeader(resume: Resume, header: string[]): void {
     );
     if (jt) resume.personalInfo.jobTitle = jt;
   }
-  // Location: a "City, Country" token in the contact block.
-  const locHay = joined.replace(email, '').replace(phone, '').replace(linkedin, '');
-  const locM = /([\p{Lu}][\p{L}.'-]+,\s*[\p{Lu}][\p{L}.'-]+)/u.exec(locHay);
-  if (locM) resume.personalInfo.location = locM[1].trim();
+  // Location: a "City, Region" token in the contact block. Split on field
+  // delimiters first so a multi-word city ("San Francisco, CA") is captured
+  // whole without swallowing the preceding name.
+  const LOC_TOKEN = /^[\p{Lu}][\p{L}.'-]+(?:[ ][\p{Lu}][\p{L}.'-]+){0,2},\s*[\p{Lu}][\p{L}.'-]+$/u;
+  const findLoc = (hay: string): string => {
+    const clean = hay.replace(email, '').replace(phone, '').replace(linkedin, '');
+    const tok = clean
+      .split(/\s{2,}|[|•·]|\s[–—]\s/u)
+      .map((t) => t.trim())
+      .find((t) => LOC_TOKEN.test(t));
+    if (tok) return tok;
+    const m = /([\p{Lu}][\p{L}.'-]+(?:[ ][\p{Lu}][\p{L}.'-]+){0,2},\s*[\p{Lu}][\p{L}.'-]+)/u.exec(clean);
+    return m ? m[1].trim() : '';
+  };
+  // Prefer a location in the header/contact block; fall back to the whole doc
+  // (sidebar layouts), but only accept the delimited token form there.
+  resume.personalInfo.location = findLoc(joined) || firstLocToken(allLines, LOC_TOKEN, email, phone, linkedin);
 
   resume.personalInfo.email = email;
   resume.personalInfo.phone = phone;
   resume.personalInfo.website = website;
   resume.personalInfo.linkedin = linkedin;
+}
+
+/**
+ * Find a location for sidebar layouts by looking only near the contact cluster
+ * (the lines around the email/phone). This avoids matching "City, Region"-shaped
+ * fragments inside prose — a real risk in German, where every noun is capitalised
+ * ("Troubleshooting, Kundensupport"). Only a line that is ENTIRELY a location
+ * token is accepted, as genuine contact lines are.
+ */
+function firstLocToken(lines: string[], re: RegExp, email: string, phone: string, linkedin: string): string {
+  const anchor = email || phone;
+  if (!anchor) return '';
+  const idx = lines.findIndex((l) => l.includes(anchor));
+  if (idx < 0) return '';
+  for (let i = Math.max(0, idx - 5); i <= Math.min(lines.length - 1, idx + 5); i++) {
+    const clean = lines[i]
+      .replace(LOC_MARK, '')
+      .replace(email, '')
+      .replace(phone, '')
+      .replace(linkedin, '')
+      .trim();
+    if (re.test(clean)) return clean;
+  }
+  return '';
 }
 
 function buildSection(def: (typeof HEADINGS)[number], rawLines: string[]): Section | null {
@@ -340,11 +399,20 @@ function buildSection(def: (typeof HEADINGS)[number], rawLines: string[]): Secti
 
   if (def.kind === 'skills') {
     const entries: { id: string; name: string; level: 0; group: string }[] = [];
+    let curGroup = '';
     for (const raw of lines) {
       const line = stripBullet(raw);
+      // A lone "Category:" (or an ALL-CAPS label) line sets the group for the
+      // items that follow, rather than becoming a skill itself.
+      const labelM = /^([\p{L}&/,\- ]{2,44}):\s*$/u.exec(line);
+      if (labelM) { curGroup = labelM[1].trim(); continue; }
+      if (/^[\p{Lu}][\p{Lu}&/,\-. ]{2,44}$/u.test(line) && !/[a-zäöü]/.test(line)) {
+        curGroup = line.replace(/[.:]$/, '').trim();
+        continue;
+      }
       // "Category: a, b, c" → group = Category, items = a, b, c.
       const catM = /^([\p{L}&/ ]{2,40}?)\s*:\s*(.+)$/u.exec(line);
-      const group = catM ? catM[1].trim() : '';
+      const group = catM ? catM[1].trim() : curGroup;
       const rest = catM ? catM[2] : line;
       for (const name of splitOutsideParens(rest)) {
         const n = name.trim().replace(/\.$/, '').trim();
