@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Bold, Italic, Underline, List, Link2, Eraser } from 'lucide-react';
+import { Bold, Italic, Underline, List, Link2, Eraser, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
 import { sanitizeHtml } from '../../utils/sanitize';
 
 interface Props {
@@ -46,6 +46,20 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     cmd('createLink', safe);
   };
 
+  // Standard keyboard shortcuts (⌘/Ctrl + B/I/U/K, ⌘⇧8 list, ⌘⇧L/E/R/J align).
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (!mod) return;
+    const k = e.key.toLowerCase();
+    if (e.shiftKey) {
+      const map: Record<string, string> = { l: 'justifyLeft', e: 'justifyCenter', r: 'justifyRight', j: 'justifyFull', '*': 'insertUnorderedList', '8': 'insertUnorderedList' };
+      if (map[k]) { e.preventDefault(); cmd(map[k]); }
+      return;
+    }
+    if (k === 'k') { e.preventDefault(); addLink(); }
+    // b/i/u are handled natively by the browser.
+  };
+
   const btn = (onClick: () => void, label: string, icon: React.ReactNode) => (
     <button
       type="button"
@@ -62,11 +76,16 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
   return (
     <div className="rounded-lg border border-black/10 bg-white focus-within:border-brandaccent dark:border-white/10 dark:bg-neutral-800">
       <div className="flex items-center gap-0.5 border-b border-black/5 px-1 py-1 dark:border-white/5">
-        {btn(() => cmd('bold'), 'Bold', <Bold size={14} />)}
-        {btn(() => cmd('italic'), 'Italic', <Italic size={14} />)}
-        {btn(() => cmd('underline'), 'Underline', <Underline size={14} />)}
-        {btn(() => cmd('insertUnorderedList'), 'Bullet list', <List size={14} />)}
-        {btn(addLink, 'Insert link', <Link2 size={14} />)}
+        {btn(() => cmd('bold'), 'Bold (⌘B)', <Bold size={14} />)}
+        {btn(() => cmd('italic'), 'Italic (⌘I)', <Italic size={14} />)}
+        {btn(() => cmd('underline'), 'Underline (⌘U)', <Underline size={14} />)}
+        {btn(() => cmd('insertUnorderedList'), 'Bullet list (⌘⇧8)', <List size={14} />)}
+        {btn(addLink, 'Insert link (⌘K)', <Link2 size={14} />)}
+        <span className="mx-0.5 h-4 w-px bg-black/10 dark:bg-white/10" />
+        {btn(() => cmd('justifyLeft'), 'Align left (⌘⇧L)', <AlignLeft size={14} />)}
+        {btn(() => cmd('justifyCenter'), 'Align center (⌘⇧E)', <AlignCenter size={14} />)}
+        {btn(() => cmd('justifyRight'), 'Align right (⌘⇧R)', <AlignRight size={14} />)}
+        {btn(() => cmd('justifyFull'), 'Justify (⌘⇧J)', <AlignJustify size={14} />)}
         <div className="ml-auto" />
         {btn(() => cmd('removeFormat'), 'Clear formatting', <Eraser size={14} />)}
       </div>
@@ -79,6 +98,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         style={{ minHeight }}
         onInput={emit}
         onBlur={emit}
+        onKeyDown={onKeyDown}
       />
     </div>
   );

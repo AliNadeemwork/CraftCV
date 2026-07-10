@@ -19,6 +19,9 @@ export function sanitizeHtml(html: string): string {
         parent.removeChild(child);
         continue;
       }
+      // Preserve a text-align value (set by the alignment buttons) so it
+      // survives into the preview and the exported PDF.
+      const align = child.getAttribute('align') || /text-align:\s*(left|center|right|justify)/i.exec(child.getAttribute('style') || '')?.[1];
       // Strip every attribute except href on anchors.
       for (const attr of Array.from(child.attributes)) {
         if (child.tagName === 'A' && attr.name === 'href') {
@@ -27,6 +30,9 @@ export function sanitizeHtml(html: string): string {
           continue;
         }
         child.removeAttribute(attr.name);
+      }
+      if (align && /^(P|DIV|LI|H[1-6])$/.test(child.tagName)) {
+        child.setAttribute('style', `text-align:${align.toLowerCase()}`);
       }
       if (child.tagName === 'A') {
         child.setAttribute('target', '_blank');

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Plus, Trash2, ImagePlus, User } from 'lucide-react';
 import type { Resume } from '../../types/resume';
 import { useResumeStore } from '../../store/resumeStore';
@@ -133,6 +133,78 @@ export default function PersonalInfoPanel({ resume }: { resume: Resume }) {
             </p>
           )}
         </div>
+      </div>
+
+      <AddDetails p={p} set={set} />
+    </div>
+  );
+}
+
+const PERSONAL_CHIPS = [
+  'Nationality', 'Date of Birth', 'Visa/Work permit', 'Availability',
+  'Gender/Pronouns', 'Relocation', 'Driving License', 'Marital Status', 'Custom detail',
+];
+const SOCIAL_CHIPS = [
+  'Website', 'Portfolio', 'LinkedIn', 'GitHub', 'GitLab', 'Medium', 'Stack Overflow',
+  'ORCID', 'Google Scholar', 'ResearchGate', 'Behance', 'Dribbble', 'YouTube',
+  'X/Twitter', 'Kaggle', 'Hugging Face', 'Custom link',
+];
+
+function AddDetails({ p, set }: { p: import('../../types/resume').PersonalInfo; set: (patch: Partial<import('../../types/resume').PersonalInfo>) => void }) {
+  const details = p.details ?? [];
+  const [open, setOpen] = useState(false);
+
+  const add = (label: string, isLink: boolean) => {
+    const isCustom = label.startsWith('Custom');
+    const detail = { id: uid('d'), type: label.toLowerCase().replace(/[^a-z]/g, '-'), label: isCustom ? '' : label, value: '', href: isLink ? '' : undefined, isLink };
+    set({ details: [...details, detail] });
+    setOpen(false);
+  };
+  const patch = (id: string, up: Partial<import('../../types/resume').PersonalDetail>) =>
+    set({ details: details.map((d) => (d.id === id ? { ...d, ...up } : d)) });
+  const remove = (id: string) => set({ details: details.filter((d) => d.id !== id) });
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-xs font-medium text-ink-soft dark:text-neutral-400">More details</span>
+        <Button size="sm" variant="ghost" onClick={() => setOpen((v) => !v)}><Plus size={14} /> Add details</Button>
+      </div>
+
+      {open && (
+        <div className="mb-2 space-y-2 rounded-lg border border-black/10 p-2 dark:border-white/10">
+          <div>
+            <div className="mb-1 text-[11px] font-semibold uppercase text-ink-soft">Personal</div>
+            <div className="flex flex-wrap gap-1">
+              {PERSONAL_CHIPS.map((c) => (
+                <button key={c} onClick={() => add(c, false)} className="focusable rounded-full border border-black/10 px-2 py-0.5 text-[11px] text-ink-soft hover:bg-brandaccent/10 dark:border-white/10">+ {c}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="mb-1 text-[11px] font-semibold uppercase text-ink-soft">Links & social</div>
+            <div className="flex flex-wrap gap-1">
+              {SOCIAL_CHIPS.map((c) => (
+                <button key={c} onClick={() => add(c, true)} className="focusable rounded-full border border-black/10 px-2 py-0.5 text-[11px] text-ink-soft hover:bg-brandaccent/10 dark:border-white/10">+ {c}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {details.map((d) => (
+          <div key={d.id} className="flex items-center gap-2">
+            <TextInput value={d.label} placeholder="Label" className="w-1/3" onChange={(e) => patch(d.id, { label: e.target.value })} />
+            <TextInput value={d.value} placeholder={d.isLink ? 'Display text' : 'Value'} onChange={(e) => patch(d.id, { value: e.target.value })} />
+            {d.isLink && (
+              <TextInput value={d.href ?? ''} placeholder="URL" className="w-1/3" onChange={(e) => patch(d.id, { href: e.target.value })} />
+            )}
+            <button className="focusable rounded p-1.5 text-ink-soft hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950" onClick={() => remove(d.id)} aria-label="Remove detail">
+              <Trash2 size={15} />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

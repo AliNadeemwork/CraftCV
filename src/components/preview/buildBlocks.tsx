@@ -23,14 +23,19 @@ const ENTRY_KINDS = new Set(['experience', 'education', 'projects', 'certificate
 
 function ContactLine({ p, ctx, icons }: { p: PersonalInfo; ctx: RenderContext; icons: boolean }): ReactNode {
   const color = ctx.onAccent ? 'rgba(255,255,255,0.9)' : '#555';
-  const items: { icon: ReactNode; text: string }[] = [];
+  const items: { icon: ReactNode; text: string; href?: string }[] = [];
   const ico = (I: typeof Mail) => (icons ? <I size={11} style={{ flexShrink: 0 }} /> : null);
-  if (p.email) items.push({ icon: ico(Mail), text: p.email });
-  if (p.phone) items.push({ icon: ico(Phone), text: p.phone });
+  if (p.email) items.push({ icon: ico(Mail), text: p.email, href: `mailto:${p.email}` });
+  if (p.phone) items.push({ icon: ico(Phone), text: p.phone, href: `tel:${p.phone.replace(/[^\d+]/g, '')}` });
   if (p.location) items.push({ icon: ico(MapPin), text: p.location });
-  if (p.website) items.push({ icon: ico(Globe), text: p.website });
-  if (p.linkedin) items.push({ icon: ico(Linkedin), text: p.linkedin });
-  for (const l of p.links) items.push({ icon: ico(Globe), text: l.label ? `${l.label}: ${l.url}` : l.url });
+  if (p.website) items.push({ icon: ico(Globe), text: p.website, href: withHttp(p.website) });
+  if (p.linkedin) items.push({ icon: ico(Linkedin), text: p.linkedin, href: withHttp(p.linkedin) });
+  for (const l of p.links) items.push({ icon: ico(Globe), text: l.label ? `${l.label}: ${l.url}` : l.url, href: withHttp(l.url) });
+  // Extra header detail fields (Add details), if present.
+  for (const d of p.details ?? []) {
+    if (!d.value && !d.href) continue;
+    items.push({ icon: icons ? <Globe size={11} style={{ flexShrink: 0 }} /> : null, text: d.value || d.label, href: d.href ? withHttp(d.href) : undefined });
+  }
 
   return (
     <div
@@ -46,11 +51,19 @@ function ContactLine({ p, ctx, icons }: { p: PersonalInfo; ctx: RenderContext; i
       {items.map((it, i) => (
         <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3em' }}>
           {it.icon}
-          {it.text}
+          {it.href ? (
+            <a href={it.href} target="_blank" rel="noreferrer noopener" style={{ color: 'inherit', textDecoration: 'none' }}>{it.text}</a>
+          ) : (
+            it.text
+          )}
         </span>
       ))}
     </div>
   );
+}
+
+function withHttp(u: string): string {
+  return /^https?:\/\//i.test(u) || /^mailto:|^tel:/i.test(u) ? u : `https://${u}`;
 }
 
 interface HeaderExtras {

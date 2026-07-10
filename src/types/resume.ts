@@ -28,6 +28,19 @@ export interface CustomLink {
   url: string;
 }
 
+/** An extra header field added via the "Add details" chips. */
+export interface PersonalDetail {
+  id: string;
+  /** Chip id, e.g. 'nationality', 'github', 'custom-link', 'custom-detail'. */
+  type: string;
+  label: string;
+  value: string;
+  /** Hyperlink target for link-type details. */
+  href?: string;
+  /** Whether this is a link/social detail (rendered with a link icon). */
+  isLink?: boolean;
+}
+
 export interface PersonalInfo {
   name: string;
   jobTitle: string;
@@ -37,6 +50,8 @@ export interface PersonalInfo {
   website: string;
   linkedin: string;
   links: CustomLink[];
+  /** Extra header detail fields added via "Add details". */
+  details?: PersonalDetail[];
   /** base64 data URL, stored locally only. */
   photo: string | null;
 }
