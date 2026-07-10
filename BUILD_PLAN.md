@@ -15,8 +15,14 @@ promotion group, skills with & without levels, 2 pages).
 | 1 | Shared display-style component (Grid/Rows/Compact/Bubble/Level) for Skills, Languages, Certificates, Interests (Cert/Int omit Level). Grid→cols 1-4; Rows→spacing+subinfo; Compact→subinfo+category sep; Level→Text/Dots/Bars + "no levels" fallback. Sub-settings independent per section. | types/resume, sectionRenderers, DesignCustomizer | ✅ |
 | 2 | Skill display: Dots/Bars/Pills/Text with correct level→fill mapping (Dots/Bars were broken) | sectionRenderers | ✅ |
 | 3 | Languages: display styles + columns + free-text detail line per entry | types, SectionBody, sectionRenderers, textExport | ✅ |
-| 4 | Columns One/Two/Mix + Change-Section-Layout drag (assign L/R + order) + Column Width steppers (sum 100%) | types, ResumeDocument, buildBlocks, DesignCustomizer | 🔨 |
-| 5 | Group Promotions (Work Exp): consecutive same-employer merge under one heading + indent line; render-only; default off | buildBlocks | ✅ (verify A,A,B,A) |
+| 4 | Columns One/Two/Mix + Change-Section-Layout drag (assign L/R + order) + Column Width steppers (sum 100%) | types, ResumeDocument, buildBlocks, DesignCustomizer | ⬜ not started |
+| 5 | Group Promotions (Work Exp): consecutive same-employer merge under one heading + indent line; render-only; default off | buildBlocks | ✅ code (needs live A,A,B,A verify) |
+
+> **Status note:** Phase 1 items 1–3 built & building green (display styles +
+> language detail), committed on `feature/full-parity`. Item 4 (columns) and all
+> of Phase 2 & Phase 3 remain. All new fields are optional → old JSON imports
+> unchanged. Live/PDF verification across templates still owed (owner will
+> spot-check before GitHub push).
 
 **GATE:** `VERIFY_PHASE1.md` — each proven live incl. A,A,B,A promotions test.
 
