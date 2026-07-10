@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import type {
   DateFormat,
@@ -130,6 +130,28 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
   };
   const jump = (id: string) => refs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+  // Scroll-spy: highlight the nav chip for the group nearest the top of the panel.
+  const [activeId, setActiveId] = useState<string>('template');
+  useEffect(() => {
+    const els = NAV.map((n) => refs.current[n.id]).filter(Boolean) as HTMLElement[];
+    if (!els.length) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]?.target instanceof HTMLElement) {
+          const id = els.find((el) => el === visible[0].target);
+          const nav = NAV.find((n) => refs.current[n.id] === id);
+          if (nav) setActiveId(nav.id);
+        }
+      },
+      { rootMargin: '-8px 0px -70% 0px', threshold: 0 },
+    );
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, []);
+
   return (
     <div className="space-y-3">
       {/* Jump navigation */}
@@ -138,7 +160,12 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
           <button
             key={n.id}
             onClick={() => jump(n.id)}
-            className="focusable rounded-full border border-black/10 px-2.5 py-1 text-[11px] text-ink-soft hover:bg-brandaccent/10 hover:text-ink dark:border-white/10 dark:text-neutral-400"
+            aria-current={activeId === n.id ? 'true' : undefined}
+            className={`focusable rounded-full border px-2.5 py-1 text-[11px] transition ${
+              activeId === n.id
+                ? 'border-brandaccent bg-brandaccent text-white'
+                : 'border-black/10 text-ink-soft hover:bg-brandaccent/10 hover:text-ink dark:border-white/10 dark:text-neutral-400'
+            }`}
           >
             {n.label}
           </button>
