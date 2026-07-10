@@ -14,7 +14,7 @@ import type {
   SimpleEntry,
   SkillEntry,
 } from '../../types/resume';
-import type { DatePosition, SkillStyle, DisplayOptions, SubinfoStyle, CategorySeparator } from '../../types/resume';
+import type { DatePosition, SkillStyle, DisplayOptions, SubinfoStyle, CategorySeparator, AccentTargets } from '../../types/resume';
 import type { TitleStyle } from '../templates/templates';
 import { formatRange, formatDateValue } from '../../utils/date';
 import { isRichTextEmpty } from '../../utils/sanitize';
@@ -259,6 +259,7 @@ export interface RenderContext {
   nameSizeOffset?: number;
   headingSizeOffset?: number;
   nameBold?: boolean;
+  accentTargets?: AccentTargets;
 }
 
 const muted = (onAccent: boolean) => (onAccent ? 'rgba(255,255,255,0.82)' : '#555');
@@ -279,7 +280,8 @@ export function SectionHeading({
   ctx: RenderContext;
 }): ReactNode {
   const label = ctx.headingCase === 'upper' ? title.toUpperCase() : title;
-  const color = ctx.onAccent ? '#fff' : ctx.accent;
+  const headingsAccent = ctx.accentTargets?.headings !== false;
+  const color = ctx.onAccent ? '#fff' : headingsAccent ? ctx.accent : '#333';
   const Icon = ctx.headingIcons && ctx.headingIcons !== 'none' && kind ? HEADING_ICONS[kind] : undefined;
   const iconEl = Icon ? (
     <Icon
@@ -401,11 +403,13 @@ function EntryHead({
   ctx: RenderContext;
 }): ReactNode {
   const below = ctx.datePosition === 'below';
+  const subAccent = ctx.accentTargets?.entrySubtitle !== false;
+  const dateColor = ctx.accentTargets?.dates && !ctx.onAccent ? ctx.accent : muted(ctx.onAccent);
   const dateEl = right ? (
     <div
       style={{
         whiteSpace: 'nowrap',
-        color: muted(ctx.onAccent),
+        color: dateColor,
         fontSize: '0.9em',
         textAlign: below ? 'left' : 'right',
         marginTop: below ? '0.05em' : 0,
@@ -420,7 +424,7 @@ function EntryHead({
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 700, color: strong(ctx.onAccent) }}>{primary}</div>
         {secondary && (
-          <div style={{ color: ctx.onAccent ? 'rgba(255,255,255,0.9)' : ctx.accent, fontWeight: 600 }}>
+          <div style={{ color: ctx.onAccent ? 'rgba(255,255,255,0.9)' : subAccent ? ctx.accent : '#555', fontWeight: 600 }}>
             {secondary}
           </div>
         )}

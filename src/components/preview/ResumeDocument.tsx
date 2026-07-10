@@ -88,6 +88,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
           nameSizeOffset: resume.design.nameSizeOffset ?? 0,
           headingSizeOffset: resume.design.headingSizeOffset ?? 0,
           nameBold: resume.design.nameBold ?? true,
+          accentTargets: resume.design.accentTargets,
         },
         sectionSpacing: resume.design.sectionSpacing,
         showPhoto: resume.design.showPhoto,
@@ -98,6 +99,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
         nameFont: resume.design.nameFontFamily ?? null,
         layout: effectiveLayout,
         headingStyle: resume.design.headingStyle,
+        colorArea: resume.design.colorArea ?? 'accent',
       }),
     [resume, template, effectiveLayout],
   );
@@ -135,6 +137,8 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
   const pageCount = Math.max(layout.main.length, twoCol ? layout.side.length : 1);
 
   const printSizeVar = resume.design.pageSize === 'A4' ? 'A4' : 'letter';
+  const borderTop =
+    resume.design.colorArea === 'border' ? `6px solid ${resume.design.accent}` : undefined;
 
   const docStyle: CSSProperties = {
     fontFamily: metrics.fontFamily,
@@ -266,7 +270,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
         <div
           key={p}
           className="cv-page"
-          style={{ width: pageW, height: pageH, display: 'flex' }}
+          style={{ width: pageW, height: pageH, display: 'flex', borderTop }}
         >
           {effectiveLayout === 'left' ? (
             <>
@@ -288,7 +292,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
       <div
         key={p}
         className="cv-page"
-        style={{ width: pageW, height: pageH, padding: padCss, boxSizing: 'border-box' }}
+        style={{ width: pageW, height: pageH, padding: padCss, boxSizing: 'border-box', borderTop }}
       >
         {renderBlocks(tracks.main, mainIdx)}
         {footerEl(p)}

@@ -391,6 +391,22 @@ export interface Design {
   footerCustom?: { left: string; center: string; right: string } | null;
   /** Bold the name in the header. Default true (current look). */
   nameBold?: boolean;
+  /** Where the accent colour is applied on the page. */
+  colorArea?: ColorArea;
+  /** Which elements are tinted with the accent colour. */
+  accentTargets?: AccentTargets;
+}
+
+/** Accent placement: tint text (default), fill the header band, or a top border. */
+export type ColorArea = 'accent' | 'header' | 'border';
+
+/** Fine-grained toggles for which elements take the accent colour. */
+export interface AccentTargets {
+  headings?: boolean; // default true
+  name?: boolean; // default false
+  jobTitle?: boolean; // default true
+  entrySubtitle?: boolean; // default true
+  dates?: boolean; // default false
 }
 
 // --- Meta ------------------------------------------------------------------

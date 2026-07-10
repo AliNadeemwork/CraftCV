@@ -118,17 +118,19 @@ function Header({
   accent: string;
   summaryHtml?: string;
 }): ReactNode {
+  const nameAccent = ctx.accentTargets?.name === true;
+  const jobAccent = ctx.accentTargets?.jobTitle !== false;
   const nameStyle: CSSProperties = {
     fontSize: `${1.9 + (ctx.nameSizeOffset ?? 0)}em`,
     fontWeight: ctx.nameBold === false ? 400 : 700,
     lineHeight: 1.1,
-    color: banner ? '#fff' : ctx.onAccent ? '#fff' : '#161616',
+    color: banner ? '#fff' : ctx.onAccent ? '#fff' : nameAccent ? accent : '#161616',
     fontFamily: ctx.nameFont ?? undefined,
   };
   const titleStyle: CSSProperties = {
     fontSize: '1.05em',
     fontWeight: 600,
-    color: banner ? 'rgba(255,255,255,0.92)' : accent,
+    color: banner ? 'rgba(255,255,255,0.92)' : jobAccent ? accent : '#555',
     marginTop: '0.1em',
   };
 
@@ -200,6 +202,8 @@ interface BuildArgs {
   layout: Layout;
   /** Optional heading-style override; undefined/'auto' keeps the template's. */
   headingStyle?: 'auto' | 'underline' | 'bar' | 'plain';
+  /** Accent placement; 'header' fills the header with the accent even in single column. */
+  colorArea?: 'accent' | 'header' | 'border';
 }
 
 function resolveTitleStyle(
@@ -351,7 +355,7 @@ export function buildTracks(args: BuildArgs): TrackSet {
       <Header
         p={resume.personalInfo}
         ctx={headerCtx}
-        banner={layout === 'banner'}
+        banner={layout === 'banner' || args.colorArea === 'header'}
         accent={accent}
         summaryHtml={headerSummarySec?.content}
       />

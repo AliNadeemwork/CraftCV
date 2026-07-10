@@ -204,6 +204,33 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
             aria-label="Accent hex"
           />
         </div>
+        <div className="mt-2 space-y-2">
+          <Row label="Placement">
+            <Segmented
+              value={d.colorArea ?? 'accent'}
+              onChange={(colorArea) => set({ colorArea })}
+              options={[{ id: 'accent', label: 'Text' }, { id: 'header', label: 'Header' }, { id: 'border', label: 'Border' }]}
+            />
+          </Row>
+          <div className="rounded-lg border border-black/10 px-2.5 py-2 dark:border-white/10">
+            <div className="mb-1 text-xs font-semibold text-ink-soft">Apply accent to</div>
+            {([
+              ['headings', 'Headings', true],
+              ['name', 'Name', false],
+              ['jobTitle', 'Job title', true],
+              ['entrySubtitle', 'Entry subtitle', true],
+              ['dates', 'Dates', false],
+            ] as const).map(([key, label, def]) => (
+              <Row key={key} label={label}>
+                <Segmented
+                  value={(d.accentTargets?.[key] ?? def) ? 'on' : 'off'}
+                  onChange={(v) => set({ accentTargets: { ...d.accentTargets, [key]: v === 'on' } })}
+                  options={[{ id: 'off', label: 'Off' }, { id: 'on', label: 'On' }]}
+                />
+              </Row>
+            ))}
+          </div>
+        </div>
       </Group>
 
       {/* Layout */}
