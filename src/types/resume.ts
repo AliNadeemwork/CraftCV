@@ -92,6 +92,8 @@ export interface LanguageEntry {
   id: string;
   name: string;
   level: LanguageLevel;
+  /** Free-text detail line, e.g. "IELTS C1 – Advanced proficiency". */
+  detail?: string;
   hidden?: boolean;
 }
 
@@ -148,27 +150,21 @@ export interface EducationSection extends BaseSection {
   /** Show school before the degree (School, Degree). Default false. */
   subtitleFirst?: boolean;
 }
-export interface SkillsSection extends BaseSection {
+export interface SkillsSection extends BaseSection, DisplayOptions {
   kind: 'skills';
   entries: SkillEntry[];
   showLevels: boolean;
-  /** Per-section style override; falls back to the global design.skillStyle. */
-  style?: SkillStyle;
-  /** Number of columns to lay skills out in (1–4). */
-  columns?: number;
 }
-export interface LanguagesSection extends BaseSection {
+export interface LanguagesSection extends BaseSection, DisplayOptions {
   kind: 'languages';
   entries: LanguageEntry[];
-  style?: SkillStyle;
-  columns?: number;
 }
 export interface ProjectsSection extends BaseSection {
   kind: 'projects';
   entries: ProjectEntry[];
   subtitleFirst?: boolean;
 }
-export interface CertificatesSection extends BaseSection {
+export interface CertificatesSection extends BaseSection, DisplayOptions {
   kind: 'certificates';
   entries: CertificateEntry[];
 }
@@ -185,7 +181,7 @@ export interface OrganisationsSection extends BaseSection {
   subtitleFirst?: boolean;
   groupPromotions?: boolean;
 }
-export interface SimpleListSection extends BaseSection {
+export interface SimpleListSection extends BaseSection, DisplayOptions {
   kind: 'interests' | 'awards' | 'publications' | 'references' | 'custom';
   entries: SimpleEntry[];
 }
@@ -227,6 +223,23 @@ export type FontFamilyId =
 
 /** Skill list rendering style. 'dots' is the original CraftCV look. */
 export type SkillStyle = 'dots' | 'bars' | 'pills' | 'text';
+
+/** Shared display style for list sections (Skills/Languages/Certificates/Interests). */
+export type DisplayStyle = 'grid' | 'rows' | 'compact' | 'bubble' | 'level';
+export type RowSpacing = 'tight' | 'spacious';
+export type SubinfoStyle = 'colon' | 'dash' | 'bracket';
+export type CategorySeparator = 'bullet' | 'pipe' | 'comma';
+export type LevelSubStyle = 'text' | 'dots' | 'bars';
+
+/** Per-section display options shared by the display-style component. */
+export interface DisplayOptions {
+  displayStyle?: DisplayStyle;
+  columns?: number; // grid: 1-4
+  rowSpacing?: RowSpacing;
+  subinfoStyle?: SubinfoStyle;
+  categorySeparator?: CategorySeparator;
+  levelSubStyle?: LevelSubStyle;
+}
 /** Heading letter-casing. 'auto' defers to the template's own choice. */
 export type HeadingCase = 'auto' | 'normal' | 'upper';
 /** Heading treatment override. 'auto' defers to the template. */

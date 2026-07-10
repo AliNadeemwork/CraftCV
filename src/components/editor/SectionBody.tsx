@@ -291,18 +291,23 @@ function RichEntryFields({
     case 'languages': {
       const e = entry as LanguageEntry;
       return (
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Language">
-            <TextInput value={e.name} placeholder="e.g. English" onChange={(ev) => onPatch({ name: ev.target.value })} />
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Language">
+              <TextInput value={e.name} placeholder="e.g. English" onChange={(ev) => onPatch({ name: ev.target.value })} />
+            </Field>
+            <Field label="Proficiency">
+              <Select value={e.level} onChange={(ev) => onPatch({ level: ev.target.value as LanguageLevel })}>
+                {languageLevels.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Field label="Detail (optional)" hint="e.g. IELTS C1 – Advanced proficiency">
+            <TextInput value={e.detail ?? ''} onChange={(ev) => onPatch({ detail: ev.target.value })} />
           </Field>
-          <Field label="Proficiency">
-            <Select value={e.level} onChange={(ev) => onPatch({ level: ev.target.value as LanguageLevel })}>
-              {languageLevels.map((l) => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </Select>
-          </Field>
-        </div>
+        </>
       );
     }
     case 'experience':

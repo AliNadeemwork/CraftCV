@@ -10,10 +10,212 @@ import type {
   SimpleEntry,
   SkillEntry,
 } from '../../types/resume';
-import type { DatePosition, SkillStyle } from '../../types/resume';
+import type { DatePosition, SkillStyle, DisplayOptions, SubinfoStyle, CategorySeparator } from '../../types/resume';
 import type { TitleStyle } from '../templates/templates';
 import { formatRange, formatDateValue } from '../../utils/date';
 import { isRichTextEmpty } from '../../utils/sanitize';
+
+// --- Shared display-style component (Grid/Rows/Compact/Bubble/Level) --------
+
+export interface DisplayItem {
+  id: string;
+  primary: string;
+  secondary: string;
+  group: string;
+  level: number; // 0-5
+  levelText: string;
+}
+
+const SKILL_LEVEL_WORDS = ['', 'Novice', 'Beginner', 'Skillful', 'Experienced', 'Expert'];
+
+function subinfoWrap(style: SubinfoStyle | undefined): [string, string] {
+  switch (style) {
+    case 'dash':
+      return [' – ', ''];
+    case 'bracket':
+      return [' (', ')'];
+    default:
+      return [': ', ''];
+  }
+}
+function categorySep(s: CategorySeparator | undefined): string {
+  switch (s) {
+    case 'bullet':
+      return '  •  ';
+    case 'pipe':
+      return '  |  ';
+    default:
+      return ', ';
+  }
+}
+
+function LevelIndicator({ level, sub, ctx }: { level: number; sub: 'text' | 'dots' | 'bars'; ctx: RenderContext; levelText?: string }): ReactNode {
+  if (sub === 'bars') return <LevelBar level={level} ctx={ctx} />;
+  if (sub === 'dots') return <LevelDots level={level} ctx={ctx} />;
+  return null;
+}
+
+/** Render a list section in the chosen display style. Falls back to a simple
+ *  list when displayStyle is undefined (handled by the caller). */
+export function DisplayList({
+  items,
+  opts,
+  allowLevel,
+  ctx,
+  defaultCols = 2,
+}: {
+  items: DisplayItem[];
+  opts: DisplayOptions;
+  allowLevel: boolean;
+  ctx: RenderContext;
+  defaultCols?: number;
+}): ReactNode {
+  const style = opts.displayStyle ?? 'grid';
+  const groups = new Map<string, DisplayItem[]>();
+  for (const it of items) {
+    const k = it.group || '';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(it);
+  }
+  const groupList = [...groups.entries()];
+  const hasGroups = groupList.some(([g]) => g);
+
+  if (style === 'bubble') {
+    const bg = ctx.onAccent ? 'rgba(255,255,255,0.18)' : hexTint(ctx.accent);
+    const color = ctx.onAccent ? '#fff' : '#333';
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {items.map((s) => (
+          <span key={s.id} style={{ background: bg, color, borderRadius: 999, padding: '0.12em 0.65em', fontSize: '0.92em', whiteSpace: 'nowrap' }}>
+            {s.primary}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  if (style === 'level' && allowLevel) {
+    const anyLevel = items.some((s) => s.level > 0);
+    const sub = opts.levelSubStyle ?? 'text';
+    if (!anyLevel) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div style={{ fontSize: '0.82em', color: muted(ctx.onAccent), fontStyle: 'italic', marginBottom: 2 }}>
+            None of these have a level yet — showing names only.
+          </div>
+          {items.map((s) => (
+            <span key={s.id} style={{ color: strong(ctx.onAccent) }}>{s.primary}</span>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {items.map((s) => (
+          <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5em' }}>
+            <span style={{ color: strong(ctx.onAccent) }}>{s.primary}</span>
+            {sub === 'text'
+              ? <span style={{ color: muted(ctx.onAccent), fontSize: '0.9em' }}>{s.levelText || s.secondary}</span>
+              : s.level > 0 && <LevelIndicator level={s.level} sub={sub} ctx={ctx} />}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (style === 'compact') {
+    const [pre, post] = subinfoWrap(opts.subinfoStyle);
+    const sep = categorySep(opts.categorySeparator);
+    const parts = hasGroups
+      ? groupList.map(([g, its]) => `${g ? g + pre : ''}${its.map((i) => i.primary).join(', ')}${g ? post : ''}`)
+      : [items.map((i) => i.primary).join(sep)];
+    return <div style={{ color: strong(ctx.onAccent) }}>{parts.join(sep)}</div>;
+  }
+
+  if (style === 'rows') {
+    const [pre, post] = subinfoWrap(opts.subinfoStyle);
+    const gap = opts.rowSpacing === 'spacious' ? 6 : 2;
+    if (hasGroups) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap }}>
+          {groupList.map(([g, its]) => (
+            <div key={g || '_'}>
+              <span style={{ fontWeight: 600, color: strong(ctx.onAccent) }}>{g}{g ? pre : ''}</span>
+              <span style={{ color: g ? muted(ctx.onAccent) : strong(ctx.onAccent) }}>{its.map((i) => i.primary).join(', ')}{g ? post : ''}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap }}>
+        {items.map((i) => (
+          <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5em' }}>
+            <span style={{ color: strong(ctx.onAccent) }}>{i.primary}</span>
+            {i.secondary && <span style={{ color: muted(ctx.onAccent), fontSize: '0.9em' }}>{i.secondary}</span>}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // grid
+  const cols = Math.min(4, Math.max(1, opts.columns ?? defaultCols));
+  const colStyle: CSSProperties = cols > 1 ? { columnCount: cols, columnGap: '1.2em' } : {};
+  if (hasGroups) {
+    return (
+      <div style={{ ...colStyle, display: cols > 1 ? 'block' : 'flex', flexDirection: 'column', gap: '0.5em' }}>
+        {groupList.map(([g, its]) => (
+          <div key={g || '_'} style={{ breakInside: 'avoid', marginBottom: '0.5em' }}>
+            {g && <div style={{ fontWeight: 600, color: muted(ctx.onAccent), fontSize: '0.85em', marginBottom: 2 }}>{g}</div>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {its.map((i) => (
+                <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5em' }}>
+                  <span style={{ color: strong(ctx.onAccent) }}>{i.primary}</span>
+                  {i.secondary && <span style={{ color: muted(ctx.onAccent), fontSize: '0.85em' }}>{i.secondary}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div style={colStyle}>
+      {items.map((i) => (
+        <div key={i.id} style={{ breakInside: 'avoid', display: 'flex', justifyContent: 'space-between', gap: '0.5em', marginBottom: 3 }}>
+          <span style={{ color: strong(ctx.onAccent) }}>{i.primary}</span>
+          {i.secondary && <span style={{ color: muted(ctx.onAccent), fontSize: '0.9em' }}>{i.secondary}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Build normalized DisplayItems for each section kind. */
+export function toDisplayItems(section: Section): DisplayItem[] {
+  switch (section.kind) {
+    case 'skills':
+      return section.entries.filter((e) => !e.hidden).map((e) => ({
+        id: e.id, primary: e.name, secondary: e.level > 0 ? SKILL_LEVEL_WORDS[e.level] : '', group: e.group || '', level: e.level, levelText: SKILL_LEVEL_WORDS[e.level] || '',
+      }));
+    case 'languages':
+      return section.entries.filter((e) => !e.hidden).map((e) => ({
+        id: e.id, primary: e.name, secondary: [e.level, e.detail].filter(Boolean).join(' – '), group: '', level: LANG_LEVEL_NUM[e.level] ?? 0, levelText: e.level,
+      }));
+    case 'certificates':
+      return section.entries.filter((e) => !e.hidden).map((e) => ({
+        id: e.id, primary: e.name, secondary: [e.issuer, e.date].filter(Boolean).join(' — '), group: '', level: 0, levelText: '',
+      }));
+    default:
+      return (section as { entries: SimpleEntry[] }).entries.filter((e) => !e.hidden).map((e) => ({
+        id: e.id, primary: e.title, secondary: e.description || '', group: '', level: 0, levelText: '',
+      }));
+  }
+}
+
+const LANG_LEVEL_NUM: Record<string, number> = { Beginner: 1, Intermediate: 2, Advanced: 3, Fluent: 4, Native: 5 };
 
 export interface RenderContext {
   accent: string;
@@ -389,7 +591,10 @@ function LanguagesBody({ entries, ctx, columns }: { entries: LanguageEntry[]; ct
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3, ...colStyle }}>
       {entries.filter((l) => !l.hidden).map((l) => (
         <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5em', breakInside: 'avoid' }}>
-          <span style={{ color: strong(ctx.onAccent) }}>{l.name}</span>
+          <span style={{ color: strong(ctx.onAccent) }}>
+            {l.name}
+            {l.detail && <span style={{ color: muted(ctx.onAccent), fontWeight: 400 }}> — {l.detail}</span>}
+          </span>
           <span style={{ color: muted(ctx.onAccent), fontSize: '0.9em' }}>{l.level}</span>
         </div>
       ))}
@@ -433,13 +638,31 @@ export function renderEntry(section: Section, index: number, ctx: RenderContext,
   }
 }
 
+const DISPLAY_KINDS = new Set(['skills', 'languages', 'certificates', 'interests']);
+
 /** Render a "whole body" for compact sections that shouldn't split. */
 export function renderCompactBody(section: Section, ctx: RenderContext): ReactNode {
+  // Opt-in shared display style (Grid/Rows/Compact/Bubble/Level).
+  if (DISPLAY_KINDS.has(section.kind) && (section as DisplayOptions).displayStyle) {
+    const allowLevel = section.kind === 'skills' || section.kind === 'languages';
+    const items = toDisplayItems(section);
+    if (!items.length) return null;
+    return (
+      <DisplayList
+        items={items}
+        opts={section as DisplayOptions}
+        allowLevel={allowLevel}
+        ctx={ctx}
+        defaultCols={section.kind === 'certificates' ? 3 : 2}
+      />
+    );
+  }
+
   switch (section.kind) {
     case 'summary':
       return <RichText html={section.content} />;
     case 'skills':
-      return <SkillsBody entries={section.entries} showLevels={section.showLevels} ctx={ctx} styleOverride={section.style} columns={section.columns} />;
+      return <SkillsBody entries={section.entries} showLevels={section.showLevels} ctx={ctx} styleOverride={ctx.skillStyle} columns={section.columns} />;
     case 'languages':
       return <LanguagesBody entries={section.entries} ctx={ctx} columns={section.columns} />;
     case 'interests':

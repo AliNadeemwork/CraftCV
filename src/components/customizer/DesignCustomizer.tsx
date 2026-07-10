@@ -2,11 +2,12 @@ import { useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import type {
   DateFormat,
+  DisplayOptions,
+  DisplayStyle,
   FontFamilyId,
   PageSize,
   Resume,
   Section,
-  SkillStyle,
 } from '../../types/resume';
 import { useResumeStore } from '../../store/resumeStore';
 import { TEMPLATE_LIST, TEMPLATES } from '../templates/templates';
@@ -389,7 +390,7 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
   );
 }
 
-const SECTION_HAS_OPTIONS = new Set(['experience', 'courses', 'organisations', 'education', 'skills', 'languages']);
+const SECTION_HAS_OPTIONS = new Set(['experience', 'courses', 'organisations', 'education', 'skills', 'languages', 'certificates', 'interests']);
 
 function SectionOptions({ section, onPatch }: { section: Section; onPatch: (patch: Partial<Section>) => void }) {
   const kind = section.kind;
@@ -428,33 +429,78 @@ function SectionOptions({ section, onPatch }: { section: Section; onPatch: (patc
         </Row>
       )}
 
-      {(kind === 'skills' || kind === 'languages') && (
+      {DISPLAY_KINDS.has(kind) && (
+        <DisplayStyleControls
+          d={section as DisplayOptions}
+          onPatch={onPatch}
+          allowLevel={kind === 'skills' || kind === 'languages'}
+        />
+      )}
+    </div>
+  );
+}
+
+const DISPLAY_KINDS = new Set(['skills', 'languages', 'certificates', 'interests']);
+
+/** The shared Grid/Rows/Compact/Bubble/Level control with its conditional sub-controls. */
+function DisplayStyleControls({
+  d,
+  onPatch,
+  allowLevel,
+}: {
+  d: DisplayOptions;
+  onPatch: (patch: Partial<Section>) => void;
+  allowLevel: boolean;
+}) {
+  const style = d.displayStyle ?? 'grid';
+  const set = (patch: Partial<DisplayOptions>) => onPatch(patch as Partial<Section>);
+  const styleOptions = [
+    { id: 'grid', label: 'Grid' },
+    { id: 'rows', label: 'Rows' },
+    { id: 'compact', label: 'Compact' },
+    { id: 'bubble', label: 'Bubble' },
+    ...(allowLevel ? [{ id: 'level', label: 'Level' }] : []),
+  ];
+  return (
+    <>
+      <Row label="Display">
+        <Segmented value={style} onChange={(v) => set({ displayStyle: v as DisplayStyle })} options={styleOptions} />
+      </Row>
+      {style === 'grid' && (
+        <Row label="Columns">
+          <Segmented
+            value={String(d.columns ?? 2)}
+            onChange={(v) => set({ columns: Number(v) })}
+            options={[{ id: '1', label: '1' }, { id: '2', label: '2' }, { id: '3', label: '3' }, { id: '4', label: '4' }]}
+          />
+        </Row>
+      )}
+      {style === 'rows' && (
         <>
-          {kind === 'skills' && (
-            <Row label="Style">
-              <Segmented
-                value={(section as { style?: SkillStyle }).style ?? 'inherit'}
-                onChange={(v) => onPatch({ style: v === 'inherit' ? undefined : (v as SkillStyle) } as Partial<Section>)}
-                options={[
-                  { id: 'inherit', label: 'Default' },
-                  { id: 'dots', label: 'Dots' },
-                  { id: 'bars', label: 'Bars' },
-                  { id: 'pills', label: 'Pills' },
-                  { id: 'text', label: 'Text' },
-                ]}
-              />
-            </Row>
-          )}
-          <Row label="Columns">
-            <Segmented
-              value={String((section as { columns?: number }).columns ?? 1)}
-              onChange={(v) => onPatch({ columns: Number(v) } as Partial<Section>)}
-              options={[{ id: '1', label: '1' }, { id: '2', label: '2' }, { id: '3', label: '3' }, { id: '4', label: '4' }]}
-            />
+          <Row label="Row spacing">
+            <Segmented value={d.rowSpacing ?? 'tight'} onChange={(v) => set({ rowSpacing: v as 'tight' | 'spacious' })} options={[{ id: 'tight', label: 'Tight' }, { id: 'spacious', label: 'Spacious' }]} />
+          </Row>
+          <Row label="Separator">
+            <Segmented value={d.subinfoStyle ?? 'colon'} onChange={(v) => set({ subinfoStyle: v as 'colon' | 'dash' | 'bracket' })} options={[{ id: 'colon', label: ':' }, { id: 'dash', label: '–' }, { id: 'bracket', label: '( )' }]} />
           </Row>
         </>
       )}
-    </div>
+      {style === 'compact' && (
+        <>
+          <Row label="Separator">
+            <Segmented value={d.subinfoStyle ?? 'colon'} onChange={(v) => set({ subinfoStyle: v as 'colon' | 'dash' | 'bracket' })} options={[{ id: 'colon', label: ':' }, { id: 'dash', label: '–' }, { id: 'bracket', label: '( )' }]} />
+          </Row>
+          <Row label="Between">
+            <Segmented value={d.categorySeparator ?? 'comma'} onChange={(v) => set({ categorySeparator: v as 'bullet' | 'pipe' | 'comma' })} options={[{ id: 'comma', label: ',' }, { id: 'bullet', label: '•' }, { id: 'pipe', label: '|' }]} />
+          </Row>
+        </>
+      )}
+      {style === 'level' && allowLevel && (
+        <Row label="Indicator">
+          <Segmented value={d.levelSubStyle ?? 'text'} onChange={(v) => set({ levelSubStyle: v as 'text' | 'dots' | 'bars' })} options={[{ id: 'text', label: 'Text' }, { id: 'dots', label: 'Dots' }, { id: 'bars', label: 'Bars' }]} />
+        </Row>
+      )}
+    </>
   );
 }
 

@@ -180,7 +180,11 @@ function sectionBlocks(
     spacingBefore: spacing,
   };
 
-  if (ENTRY_KINDS.has(section.kind)) {
+  // Certificates normally render as per-entry blocks, but when a display style
+  // is chosen they render as a single grouped body (like Skills).
+  const asCompact = section.kind === 'certificates' && (section as { displayStyle?: string }).displayStyle;
+
+  if (ENTRY_KINDS.has(section.kind) && !asCompact) {
     const allEntries = (section as { entries: { id: string; hidden?: boolean; company?: string }[] }).entries;
     // Entries flagged hidden are kept in data but excluded from the output.
     const visibleIdx = allEntries
