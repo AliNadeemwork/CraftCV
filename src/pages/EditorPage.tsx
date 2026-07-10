@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Download, FileJson, LayoutList, Palette, Moon, Sun, FileText, Eye, PenLine, Mail,
@@ -23,8 +22,9 @@ export default function EditorPage() {
   const nav = useNavigate();
   const resume = useResumeStore((s) => s.resumes.find((r) => r.id === id));
   const renameResume = useResumeStore((s) => s.renameResume);
-  const { theme, toggleTheme, editorTab, setEditorTab } = useUIStore();
-  const [tab, setTab] = useState<Tab>('content');
+  const { theme, toggleTheme, editorTab, setEditorTab, perResume, setWorkTab } = useUIStore();
+  const tab: Tab = perResume[id]?.workTab ?? 'content';
+  const setTab = (t: Tab) => setWorkTab(id, t);
 
   if (!resume) {
     return (
