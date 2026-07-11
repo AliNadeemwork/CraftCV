@@ -4,7 +4,7 @@
 
 ### _One CV Away from Your Dream Job_
 
-**A free, open-source, privacy-first résumé builder that runs entirely in your browser.**
+**A free, open-source, privacy-first resume builder that runs entirely in your browser.**
 
 No account. No backend. No tracking. Your data never leaves your device.
 
@@ -17,7 +17,7 @@ Made by **Ali Nadeem**
 > ### ⚠️ Phase 1 — early release
 >
 > This is **Phase 1** of CraftCV: the core builder, importer, and customization
-> are in place and working, but it is early software that hasn't been battle-tested
+> are in place and working, but it is early software that hasn't been battle tested
 > across every browser, resume layout, or edge case. **Use it at your own risk** —
 > always keep your own copy of important résumé content (the JSON / text export is
 > there for exactly this), and expect rough edges. See the [License](#license) for
@@ -25,10 +25,7 @@ Made by **Ali Nadeem**
 
 CraftCV is a client-side resume builder. Everything; your resumes, photos, and
 settings — is stored in your browser's `localStorage`. There is no server to send
-your data to, and JSON export/import is the backup story. I have alreadydeployed on Vercel so you can use it too.
-
-> The brand name lives in a single constant (`src/config.ts` → `APP_NAME`), so you
-> can rebrand the whole app by changing one line.
+your data to, and JSON export/import is the backup story. I have already deployed on Vercel so you can use it too.
 
 ## Features
 
@@ -48,6 +45,15 @@ your data to, and JSON export/import is the backup story. I have alreadydeployed
 - **Multi-language & RTL** — rename any section label (e.g. *Experience → Berufserfahrung*) and switch the document to a right-to-left language.
 - **Dark mode** — for the editor UI. The résumé paper always stays white.
 - **Load example** — one click loads a fully populated sample résumé.
+
+
+## Why CraftCV
+
+- Unlimited resumes (no paywall)
+- 100% client-side (no accounts, no tracking)
+- Live preview as you edit
+- ATS-safe PDF export (selectable text, no images of text)
+- Completely free and open source
 
 ## Tech stack
 
@@ -72,25 +78,6 @@ Open a résumé, click **Export PDF**, and in the browser print dialog choose
 **Save as PDF**. Set margins to *None* (CraftCV controls its own margins) for a
 pixel-accurate match with the preview.
 
-## Screenshots
-
-> _Add screenshots here._ Suggested shots: the dashboard grid, the split-screen
-> editor, the design customizer, and a two-page exported PDF.
-
-| Dashboard | Editor | Templates |
-| --- | --- | --- |
-| _screenshot_ | _screenshot_ | _screenshot_ |
-
-## Deploy to Vercel
-
-CraftCV is a static single-page app, so any static host works. For Vercel:
-
-1. Push this repository to GitHub.
-2. In [Vercel](https://vercel.com/new), **Import** the repository.
-3. Framework preset: **Vite**. Build command `npm run build`, output directory `dist`. (Vercel detects these automatically.)
-4. Click **Deploy**.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
 
 > Routing uses `HashRouter`, so deep links (e.g. `/#/editor/abc`) work on any
 > static host with no extra rewrite configuration.
@@ -123,10 +110,6 @@ craftcv/
 └── package.json
 ```
 
-## Contributing
-
-Issues and PRs welcome. Keep TypeScript in strict mode and prefer the existing
-component primitives in `src/components/ui`.
 
 ## License
 
