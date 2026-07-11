@@ -100,6 +100,17 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
           headerIconStyle: resume.design.headerIconStyle ?? 0,
           linkScope: resume.design.linkScope,
           headerImage: resume.design.colorMode === 'image' ? resume.design.headerImage ?? null : null,
+          entrySplit: resume.design.entrySplit,
+          entrySplitRatio: resume.design.entrySplitRatio,
+          locationPlacement: resume.design.locationPlacement,
+          dateLocationOrder: resume.design.dateLocationOrder,
+          subtitleStyle: resume.design.subtitleStyle,
+          dateStyle: resume.design.dateStyle,
+          locationStyle: resume.design.locationStyle,
+          indentBody: resume.design.indentBody,
+          listStyle: resume.design.listStyle,
+          professionalTitleStyle: resume.design.professionalTitleStyle,
+          professionalTitlePosition: resume.design.professionalTitlePosition,
         },
         sectionSpacing: resume.design.sectionSpacing,
         showPhoto: resume.design.showPhoto,
@@ -151,14 +162,16 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
   const borderTop =
     resume.design.colorArea === 'border' ? `6px solid ${resume.design.accent}` : undefined;
 
+  // Multi-colour mode can override body text and page background colours.
+  const multi = resume.design.colorMode === 'multi';
   const docStyle: CSSProperties = {
     fontFamily: metrics.fontFamily,
     fontSize: fontPx,
     lineHeight: metrics.lineHeight,
-    color: '#1a1a1a',
-    // Expose accent to focus rings / children.
+    color: multi && resume.design.textColor ? resume.design.textColor : '#1a1a1a',
     ['--accent' as string]: resume.design.accent,
   };
+  const pageBg = multi && resume.design.pageBg ? resume.design.pageBg : undefined;
 
   const renderBlocks = (blocks: Block[], indices: number[]) => (
     <>
@@ -286,7 +299,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
         <div
           key={p}
           className="cv-page"
-          style={{ width: pageW, height: pageH, display: 'flex', borderTop }}
+          style={{ width: pageW, height: pageH, display: 'flex', borderTop, background: pageBg }}
         >
           {effectiveLayout === 'left' ? (
             <>
@@ -308,7 +321,7 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
       <div
         key={p}
         className="cv-page"
-        style={{ width: pageW, height: pageH, padding: padCss, boxSizing: 'border-box', borderTop }}
+        style={{ width: pageW, height: pageH, padding: padCss, boxSizing: 'border-box', borderTop, background: pageBg }}
       >
         {renderBlocks(tracks.main, mainIdx)}
         {footerEl(p)}

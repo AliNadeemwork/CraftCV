@@ -178,7 +178,7 @@ export function DisplayList({
       <div style={{ display: 'flex', flexDirection: 'column', gap }}>
         {items.map((i) => (
           <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5em' }}>
-            <span style={{ color: strong(ctx.onAccent) }}>{i.primary}</span>
+            <span style={{ color: strong(ctx.onAccent) }}>{opts.bulletRows && <span style={{ color: indicatorOn(ctx) }}>•&nbsp;</span>}{i.primary}</span>
             {i.secondary && <span style={{ color: muted(ctx.onAccent), fontSize: '0.9em' }}>{i.secondary}</span>}
           </div>
         ))}
@@ -273,6 +273,19 @@ export interface RenderContext {
   headerIconStyle?: number;
   linkScope?: import('../../types/resume').LinkScope;
   headerImage?: string | null;
+  // entry layout (advanced)
+  entrySplit?: 'auto' | 'manual';
+  entrySplitRatio?: number;
+  locationPlacement?: 'sameline' | 'below';
+  dateLocationOrder?: 'date-location' | 'location-date';
+  subtitleStyle?: 'normal' | 'bold' | 'italic';
+  dateStyle?: 'normal' | 'bold' | 'italic';
+  locationStyle?: 'normal' | 'bold' | 'italic';
+  indentBody?: boolean;
+  listStyle?: 'bullet' | 'hyphen';
+  // header (advanced)
+  professionalTitleStyle?: 'normal' | 'bold' | 'italic';
+  professionalTitlePosition?: 'sameline' | 'below';
 }
 
 const muted = (onAccent: boolean) => (onAccent ? 'rgba(255,255,255,0.82)' : '#555');
@@ -402,7 +415,7 @@ export function SectionHeading({
             ...common,
             textTransform: 'uppercase',
             letterSpacing: '0.12em',
-            fontSize: '0.82em',
+            fontSize: `${0.82 + (ctx.headingSizeOffset ?? 0)}em`,
             borderBottom: `1px solid ${ctx.onAccent ? 'rgba(255,255,255,0.4)' : '#d8d3cc'}`,
             paddingBottom: '0.3em',
           }}
@@ -417,7 +430,7 @@ export function SectionHeading({
             ...common,
             fontFamily: 'Lora, Georgia, serif',
             fontStyle: 'italic',
-            fontSize: '1.2em',
+            fontSize: `${1.2 + (ctx.headingSizeOffset ?? 0)}em`,
             borderBottom: '1px solid #e0dbd2',
             paddingBottom: '0.2em',
           }}
@@ -436,7 +449,7 @@ export function SectionHeading({
             borderRadius: 3,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
-            fontSize: '0.8em',
+            fontSize: `${0.8 + (ctx.headingSizeOffset ?? 0)}em`,
           }}
         >
           {content}
@@ -449,91 +462,117 @@ export function SectionHeading({
 
 // --- entry rows ------------------------------------------------------------
 
+const emphasis = (e: 'normal' | 'bold' | 'italic' | undefined, base = 400): CSSProperties => ({
+  fontWeight: e === 'bold' ? 700 : base,
+  fontStyle: e === 'italic' ? 'italic' : 'normal',
+});
+
 function EntryHead({
   primary,
   secondary,
   right,
+  loc,
   ctx,
 }: {
   primary: ReactNode;
   secondary?: ReactNode;
   right?: string;
+  loc?: string;
   ctx: RenderContext;
 }): ReactNode {
   const pos = ctx.datePosition ?? 'right';
   const below = pos === 'below';
+  const full = ctx.entryStructure === 'full';
   const subAccent = ctx.accentTargets?.entrySubtitle !== false;
+  const titleColor = ctx.accentTargets?.entryTitle && !ctx.onAccent ? ctx.accent : strong(ctx.onAccent);
+  const subColor = ctx.onAccent ? 'rgba(255,255,255,0.9)' : subAccent ? ctx.accent : '#555';
   const dateColor = ctx.accentTargets?.dates && !ctx.onAccent ? ctx.accent : muted(ctx.onAccent);
+  const locColor = muted(ctx.onAccent);
   const headSize = `${1 + (ctx.entryHeaderSizeOffset ?? 0)}em`;
   const sameLine = ctx.subtitlePlacement === 'sameline';
-  const dateEl = right ? (
-    <div style={{ whiteSpace: 'nowrap', color: dateColor, fontSize: '0.9em', textAlign: below ? 'left' : 'right', marginTop: below ? '0.05em' : 0 }}>
-      {right}
+  const locSame = ctx.locationPlacement !== 'below'; // default: location beside/with date
+
+  // Build date + location fragments in the chosen order.
+  const dateFrag = right ? <span style={{ color: dateColor, ...emphasis(ctx.dateStyle) }}>{right}</span> : null;
+  const locFrag = loc ? <span style={{ color: locColor, ...emphasis(ctx.locationStyle) }}>{loc}</span> : null;
+  const ordered = ctx.dateLocationOrder === 'location-date' ? [locFrag, dateFrag] : [dateFrag, locFrag];
+  const metaParts = ordered.filter(Boolean) as ReactNode[];
+  const metaInline = metaParts.length ? (
+    <span style={{ fontSize: '0.9em' }}>{metaParts.map((m, i) => <span key={i}>{i > 0 && <span style={{ opacity: 0.5 }}> | </span>}{m}</span>)}</span>
+  ) : null;
+  const metaColumn = metaParts.length ? (
+    <div style={{ whiteSpace: 'nowrap', fontSize: '0.9em', textAlign: below || pos === 'left' ? 'left' : 'right', display: 'flex', flexDirection: locSame ? 'row' : 'column', gap: locSame ? '0.4em' : 0, alignItems: below || pos === 'left' ? 'flex-start' : 'flex-end' }}>
+      {metaParts.map((m, i) => <span key={i}>{locSame && i > 0 && <span style={{ opacity: 0.5 }}>| </span>}{m}</span>)}
     </div>
   ) : null;
 
+  const subtitleEl = secondary ? <span style={{ color: subColor, ...emphasis(ctx.subtitleStyle, 600) }}>{secondary}</span> : null;
+
+  const titleLine = (
+    <div style={{ fontWeight: 700, fontSize: headSize, color: titleColor }}>
+      {primary}
+      {sameLine && subtitleEl && <>{', '}{subtitleEl}</>}
+    </div>
+  );
   const titleBlock = (
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontWeight: 700, fontSize: headSize, color: strong(ctx.onAccent) }}>
-        {primary}
-        {sameLine && secondary && (
-          <span style={{ fontWeight: 600, color: ctx.onAccent ? 'rgba(255,255,255,0.9)' : subAccent ? ctx.accent : '#555' }}>
-            {' · '}{secondary}
-          </span>
-        )}
-      </div>
-      {!sameLine && secondary && (
-        <div style={{ color: ctx.onAccent ? 'rgba(255,255,255,0.9)' : subAccent ? ctx.accent : '#555', fontWeight: 600 }}>
-          {secondary}
-        </div>
-      )}
-      {below && dateEl}
+      {titleLine}
+      {!sameLine && subtitleEl && <div>{subtitleEl}</div>}
+      {below && metaColumn}
     </div>
   );
 
-  // 'left' → date in a fixed left column; 'split' → date right, vertically top.
-  if (pos === 'left' && right) {
+  // Full-width: title (+ inline subtitle) on the left, meta inline on the right.
+  if (full) {
     return (
-      <div style={{ display: 'flex', gap: '0.75em' }}>
-        <div style={{ width: '7em', flexShrink: 0, color: dateColor, fontSize: '0.9em' }}>{right}</div>
-        {titleBlock}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75em', alignItems: 'baseline' }}>
+          {titleLine}
+          {metaInline && <div style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{metaInline}</div>}
+        </div>
+        {!sameLine && subtitleEl && <div>{subtitleEl}</div>}
       </div>
     );
   }
+  if (pos === 'left' && metaColumn) {
+    return <div style={{ display: 'flex', gap: '0.75em' }}><div style={{ width: '7.5em', flexShrink: 0 }}>{metaColumn}</div>{titleBlock}</div>;
+  }
+  // columns (default): title left, meta right. Manual split fixes the widths.
+  const manual = ctx.entrySplit === 'manual';
+  const ratio = Math.min(80, Math.max(30, ctx.entrySplitRatio ?? 60));
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75em', alignItems: pos === 'split' ? 'baseline' : 'flex-start' }}>
-      {titleBlock}
-      {!below && dateEl}
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75em', alignItems: 'flex-start' }}>
+      <div style={{ minWidth: 0, flexBasis: manual ? `${ratio}%` : undefined, flexGrow: 1 }}>{titleBlock}</div>
+      {!below && metaColumn && <div style={{ flexBasis: manual ? `${100 - ratio}%` : undefined, flexShrink: 0 }}>{metaColumn}</div>}
     </div>
   );
 }
 
+/** Entry description with optional body indent + hyphen list style. */
+function EntryDesc({ html, ctx }: { html: string; ctx: RenderContext }): ReactNode {
+  if (isRichTextEmpty(html)) return null;
+  const cls = `cv-rich${ctx.listStyle === 'hyphen' ? ' cv-hyphen' : ''}`;
+  return <div className={cls} style={{ paddingLeft: ctx.indentBody ? '1.1em' : 0 }} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 function ExperienceRow({ e, ctx, subtitleFirst, hideCompany }: { e: ExperienceEntry; ctx: RenderContext; subtitleFirst?: boolean; hideCompany?: boolean }): ReactNode {
-  const loc = e.location ? ` · ${e.location}` : '';
-  const company = `${e.company}${loc}`.replace(/^ · /, '');
   const role = e.title || 'Role';
-  const [primary, secondary] = hideCompany
-    ? [role, e.location]
-    : subtitleFirst
-      ? [company, role]
-      : [role, company];
+  const [primary, secondary] = hideCompany ? [role, ''] : subtitleFirst ? [e.company, role] : [role, e.company];
   return (
     <div>
-      <EntryHead primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} ctx={ctx} />
-      <RichText html={e.description} />
+      <EntryHead primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} loc={e.location} ctx={ctx} />
+      <EntryDesc html={e.description} ctx={ctx} />
     </div>
   );
 }
 
 function EducationRow({ e, ctx, subtitleFirst }: { e: EducationEntry; ctx: RenderContext; subtitleFirst?: boolean }): ReactNode {
-  const loc = e.location ? ` · ${e.location}` : '';
-  const school = `${e.institution}${loc}`.replace(/^ · /, '');
   const degree = e.degree || 'Degree';
-  const [primary, secondary] = subtitleFirst ? [school, degree] : [degree, school];
+  const [primary, secondary] = subtitleFirst ? [e.institution, degree] : [degree, e.institution];
   return (
     <div>
-      <EntryHead primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} ctx={ctx} />
-      <RichText html={e.description} />
+      <EntryHead primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} loc={e.location} ctx={ctx} />
+      <EntryDesc html={e.description} ctx={ctx} />
     </div>
   );
 }

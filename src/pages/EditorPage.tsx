@@ -143,7 +143,7 @@ export default function EditorPage() {
 
       {/* Split screen (desktop) / single pane (mobile) */}
       <div className="flex min-h-0 flex-1">
-        <div className={`w-full md:w-[46%] md:max-w-[560px] md:border-r md:border-black/5 dark:md:border-white/5 ${editorTab === 'edit' ? 'block' : 'hidden'} md:block`}>
+        <div className={`min-h-0 w-full overflow-hidden md:w-[46%] md:max-w-[560px] md:border-r md:border-black/5 dark:md:border-white/5 ${editorTab === 'edit' ? 'block' : 'hidden'} md:block`}>
           {editorPanel}
         </div>
         <div className={`w-full flex-1 ${editorTab === 'preview' ? 'block' : 'hidden'} md:block`}>

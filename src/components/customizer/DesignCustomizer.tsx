@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check as CheckIcon, Minus, Plus, Link as LinkIcon, Upload } from 'lucide-react';
+import { Check as CheckIcon, Minus, Plus, Link as LinkIcon, Upload, ChevronDown } from 'lucide-react';
 import type {
   DateFormat,
   DatePosition,
@@ -23,19 +23,6 @@ const DATE_FORMATS: { id: DateFormat; label: string }[] = [
   { id: 'MM.YYYY', label: '01.2026' },
   { id: "MMM 'YY", label: "Jan '26" },
   { id: 'YYYY', label: '2026' },
-];
-
-const LANGS = [
-  { code: 'en', label: 'English (UK)' },
-  { code: 'es', label: 'Español' },
-  { code: 'fr', label: 'Français' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'pt', label: 'Português' },
-  { code: 'it', label: 'Italiano' },
-  { code: 'nl', label: 'Nederlands' },
-  { code: 'ar', label: 'العربية (RTL)' },
-  { code: 'he', label: 'עברית (RTL)' },
-  { code: 'fa', label: 'فارسی (RTL)' },
 ];
 
 const NAV: { id: string; label: string }[] = [
@@ -143,6 +130,39 @@ function Label({ children }: { children: React.ReactNode }) {
   return <div className="mb-1.5 mt-3 text-sm font-semibold text-ink first:mt-0 dark:text-neutral-200">{children}</div>;
 }
 
+/** Collapsible "Advanced settings" panel. */
+function Accordion({ open, onToggle, label, children }: { open: boolean; onToggle: () => void; label: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.03]">
+      <button onClick={onToggle} className="focusable flex w-full items-center justify-between px-3 py-2.5 text-sm text-ink-soft">
+        {label}
+        <ChevronDown size={16} className={`transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="border-t border-black/5 px-3 py-2.5 dark:border-white/5">{children}</div>}
+    </div>
+  );
+}
+
+/** Aa · Aa(bold) · Aa(italic) emphasis picker. */
+function EmphasisPicker({ value, onChange }: { value?: 'normal' | 'bold' | 'italic'; onChange: (v: 'normal' | 'bold' | 'italic') => void }) {
+  const opts: { id: 'normal' | 'bold' | 'italic'; style: React.CSSProperties }[] = [
+    { id: 'normal', style: {} },
+    { id: 'bold', style: { fontWeight: 700 } },
+    { id: 'italic', style: { fontStyle: 'italic' } },
+  ];
+  const cur = value ?? 'normal';
+  return (
+    <div className="flex gap-2">
+      {opts.map((o) => (
+        <button key={o.id} onClick={() => onChange(o.id)} style={o.style}
+          className={`focusable grid h-10 w-11 place-items-center rounded-lg border text-sm ${cur === o.id ? 'border-brandaccent bg-brandaccent/10 text-brandaccent' : 'border-black/10 text-ink-soft dark:border-white/10'}`}>
+          Aa
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // --- main -------------------------------------------------------------------
 
 export default function DesignCustomizer({ resume }: { resume: Resume }) {
@@ -160,29 +180,24 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
   const jump = (id: string) => refs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const [activeId, setActiveId] = useState('document');
+  const [advEntries, setAdvEntries] = useState(false);
+  const [advHeader, setAdvHeader] = useState(false);
   useEffect(() => {
     const root = scrollRef.current;
-    const els = NAV.map((n) => refs.current[n.id]).filter(Boolean) as HTMLElement[];
-    if (!root || !els.length) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const vis = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        const top = vis[0]?.target;
-        if (top) {
-          const nav = NAV.find((n) => refs.current[n.id] === top);
-          if (nav) setActiveId(nav.id);
-        }
-      },
-      { root, rootMargin: '0px 0px -75% 0px', threshold: 0 },
-    );
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
+    if (!root) return;
+    const onScroll = () => {
+      const top = root.scrollTop + 80; // a little below the top edge
+      let current = NAV[0].id;
+      for (const n of NAV) {
+        const el = refs.current[n.id];
+        if (el && el.offsetTop <= top) current = n.id;
+      }
+      setActiveId(current);
+    };
+    onScroll();
+    root.addEventListener('scroll', onScroll, { passive: true });
+    return () => root.removeEventListener('scroll', onScroll);
   }, []);
-
-  const setLanguage = (language: string) =>
-    useResumeStore.setState((s) => ({
-      resumes: s.resumes.map((r) => (r.id === resume.id ? { ...r, meta: { ...r.meta, language, updatedAt: new Date().toISOString() } } : r)),
-    }));
 
   const onHeaderImage = (file: File | undefined) => {
     if (!file) return;
@@ -220,10 +235,6 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
       {/* Scrollable cards */}
       <div ref={scrollRef} className="thin-scroll flex-1 space-y-4 overflow-y-auto px-3 py-3">
         <Card id="document" title="Document Settings" registerRef={registerRef}>
-          <Label>Language</Label>
-          <Select value={resume.meta.language} onChange={(e) => setLanguage(e.target.value)} className="w-full">
-            {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
-          </Select>
           <Label>Date Format</Label>
           <Select value={d.dateFormat} onChange={(e) => set({ dateFormat: e.target.value as DateFormat })} className="w-full">
             {DATE_FORMATS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
@@ -277,10 +288,41 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
             options={[{ id: 'full', label: 'Full Width' }, { id: 'columns', label: 'Columns' }]} />
           <Label>Date &amp; Location Position</Label>
           <Segmented grow value={(d.datePosition ?? 'right') as DatePosition} onChange={(datePosition) => set({ datePosition })}
-            options={[{ id: 'right', label: 'Right' }, { id: 'left', label: 'Left' }, { id: 'split', label: 'Split' }, { id: 'below', label: 'Below' }]} />
+            options={[{ id: 'right', label: 'Right' }, { id: 'left', label: 'Left' }, { id: 'below', label: 'Below' }]} />
+
+          <Label>Entry Header Split</Label>
+          <Segmented grow value={d.entrySplit ?? 'auto'} onChange={(entrySplit) => set({ entrySplit })}
+            options={[{ id: 'auto', label: 'Auto' }, { id: 'manual', label: 'Manual' }]} />
+          {d.entrySplit === 'manual' && (
+            <div className="mt-1">
+              <Stepper label={`Title & Subtitle ${d.entrySplitRatio ?? 60}%`} value={d.entrySplitRatio ?? 60} min={30} max={80} step={5}
+                onChange={(entrySplitRatio) => set({ entrySplitRatio })} display={(v) => `${v} / ${100 - v}`} />
+            </div>
+          )}
+
           <Label>Subtitle Placement</Label>
           <Segmented grow value={d.subtitlePlacement ?? 'below'} onChange={(subtitlePlacement) => set({ subtitlePlacement })}
             options={[{ id: 'sameline', label: 'Try Same Line' }, { id: 'below', label: 'Below Title' }]} />
+          <Label>Location Placement</Label>
+          <Segmented grow value={d.locationPlacement ?? 'sameline'} onChange={(locationPlacement) => set({ locationPlacement })}
+            options={[{ id: 'sameline', label: 'Try Same Line' }, { id: 'below', label: 'Below Date' }]} />
+
+          <Accordion open={advEntries} onToggle={() => setAdvEntries((o) => !o)} label="Advanced settings">
+            <Label>Subtitle</Label>
+            <EmphasisPicker value={d.subtitleStyle} onChange={(subtitleStyle) => set({ subtitleStyle })} />
+            <Label>Date</Label>
+            <EmphasisPicker value={d.dateStyle} onChange={(dateStyle) => set({ dateStyle })} />
+            <Label>Location</Label>
+            <EmphasisPicker value={d.locationStyle} onChange={(locationStyle) => set({ locationStyle })} />
+            <Label>Description Indentation</Label>
+            <Check label="Indent body" checked={d.indentBody ?? false} onChange={(v) => set({ indentBody: v })} />
+            <Label>List Style</Label>
+            <Segmented grow value={d.listStyle ?? 'bullet'} onChange={(listStyle) => set({ listStyle })}
+              options={[{ id: 'bullet', label: '• Bullet' }, { id: 'hyphen', label: '– Hyphen' }]} />
+            <Label>Date &amp; Location Order</Label>
+            <Segmented grow value={d.dateLocationOrder ?? 'date-location'} onChange={(dateLocationOrder) => set({ dateLocationOrder })}
+              options={[{ id: 'date-location', label: 'Date – Location' }, { id: 'location-date', label: 'Location – Date' }]} />
+          </Accordion>
         </Card>
 
         <Card id="headings" title="Section Headings" registerRef={registerRef}>
@@ -348,21 +390,21 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
               <Upload size={14} /> {d.headerImage ? 'Change header image' : 'Upload header image'}
               <input type="file" accept="image/*" className="hidden" onChange={(e) => onHeaderImage(e.target.files?.[0])} />
             </label>
+          ) : d.colorMode === 'multi' ? (
+            <div className="mt-3 flex items-start justify-around gap-2 text-center">
+              <ColorDot label="Text" value={d.textColor ?? '#1a1a1a'} onChange={(textColor) => set({ textColor })} />
+              <ColorDot label="Background" value={d.pageBg ?? '#ffffff'} onChange={(pageBg) => set({ pageBg })} />
+              <ColorDot label="Accent" value={d.accent} onChange={(accent) => set({ accent })} />
+            </div>
           ) : (
             <Swatches value={d.accent} onChange={(accent) => set({ accent })} />
-          )}
-          {d.colorMode === 'multi' && (
-            <>
-              <Label>Secondary colour</Label>
-              <Swatches value={d.colorSecondary ?? d.accent} onChange={(c) => set({ colorSecondary: c })} />
-            </>
           )}
 
           <div className="mt-4 text-sm font-semibold text-ink dark:text-neutral-200">Apply Accent Color</div>
           <div className="mt-1 grid grid-cols-2 gap-x-4">
             <Check label="Name" checked={at.name === true} onChange={(v) => setAt('name', v)} />
             <Check label="Dots/bars/bubbles" checked={at.indicators !== false} onChange={(v) => setAt('indicators', v)} />
-            <Check label="Job title" checked={at.jobTitle !== false} onChange={(v) => setAt('jobTitle', v)} />
+            <Check label="Entry header" checked={at.entryTitle === true} onChange={(v) => setAt('entryTitle', v)} />
             <Check label="Dates" checked={at.dates === true} onChange={(v) => setAt('dates', v)} />
             <Check label="Headings" checked={at.headings !== false} onChange={(v) => setAt('headings', v)} />
             <Check label="Entry subtitle" checked={at.entrySubtitle !== false} onChange={(v) => setAt('entrySubtitle', v)} />
@@ -401,6 +443,16 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
               </div>
             </>
           )}
+          <Accordion open={advHeader} onToggle={() => setAdvHeader((o) => !o)} label="Advanced Settings">
+            <Label>Name Style</Label>
+            <Segmented value={(d.nameBold ?? true) ? 'bold' : 'normal'} onChange={(v) => set({ nameBold: v === 'bold' })}
+              options={[{ id: 'normal', label: 'Aa' }, { id: 'bold', label: 'Aa' }]} />
+            <Label>Professional Title Style</Label>
+            <EmphasisPicker value={d.professionalTitleStyle} onChange={(professionalTitleStyle) => set({ professionalTitleStyle })} />
+            <Label>Professional Title Position</Label>
+            <Segmented grow value={d.professionalTitlePosition ?? 'below'} onChange={(professionalTitlePosition) => set({ professionalTitlePosition })}
+              options={[{ id: 'sameline', label: 'Try Same Line' }, { id: 'below', label: 'Below' }]} />
+          </Accordion>
         </Card>
 
         <Card id="photo" title="Photo" registerRef={registerRef}>
@@ -468,17 +520,38 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
 // --- colour + glyph helpers -------------------------------------------------
 
 function Swatches({ value, onChange }: { value: string; onChange: (c: string) => void }) {
+  const selected = value.toLowerCase();
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
-      {ACCENT_PRESETS.map((c) => (
-        <button key={c} onClick={() => onChange(c)} aria-label={`Colour ${c}`}
-          className={`focusable grid h-8 w-8 place-items-center rounded-full border transition ${value.toLowerCase() === c.toLowerCase() ? 'ring-2 ring-offset-2 ring-black/40 dark:ring-offset-neutral-900' : 'border-black/10'}`}
-          style={{ background: c }}>
-          {value.toLowerCase() === c.toLowerCase() && <CheckIcon size={13} className="text-white" />}
-        </button>
-      ))}
-      <label className="focusable relative h-8 w-8 overflow-hidden rounded-full border border-dashed border-black/25" style={{ background: 'conic-gradient(red,orange,yellow,green,cyan,blue,violet,red)' }}>
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="absolute -left-1 -top-1 h-10 w-10 cursor-pointer opacity-0" aria-label="Custom colour" />
+    <div className="mt-3">
+      <div className="grid grid-cols-8 gap-2.5">
+        {ACCENT_PRESETS.map((c) => {
+          const active = selected === c.toLowerCase();
+          return (
+            <button key={c} onClick={() => onChange(c)} aria-label={`Colour ${c}`}
+              className="focusable grid aspect-square place-items-center rounded-full transition"
+              style={{ background: c, boxShadow: active ? '0 0 0 2px #fff, 0 0 0 4px var(--tw-brandaccent, #6d5efc)' : 'inset 0 0 0 1px rgba(0,0,0,0.1)' }}>
+              {active && <CheckIcon size={13} className="text-white" />}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <label className="focusable relative grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: 'conic-gradient(from 90deg,#f87171,#fbbf24,#34d399,#22d3ee,#60a5fa,#a78bfa,#f472b6,#f87171)' }} aria-label="Pick custom colour">
+          <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+        </label>
+        <input value={value} onChange={(e) => onChange(e.target.value)} className="focusable w-24 rounded-lg border border-black/10 px-2 py-1.5 text-xs dark:border-white/10 dark:bg-neutral-800" aria-label="Custom hex" />
+      </div>
+    </div>
+  );
+}
+
+/** A labelled colour circle that opens the native picker (Multi mode). */
+function ColorDot({ label, value, onChange }: { label: string; value: string; onChange: (c: string) => void }) {
+  return (
+    <div>
+      <div className="mb-1.5 text-xs text-ink-soft">{label}</div>
+      <label className="focusable relative mx-auto grid h-11 w-11 place-items-center rounded-full" style={{ background: value, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.15)' }} aria-label={`${label} colour`}>
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
       </label>
     </div>
   );
@@ -576,7 +649,8 @@ function DisplayStyleControls({ d, onPatch, allowLevel }: { d: DisplayOptions; o
       {style === 'rows' && (
         <>
           <Row label="Row spacing"><Segmented value={d.rowSpacing ?? 'tight'} onChange={(v) => set({ rowSpacing: v as 'tight' | 'spacious' })} options={[{ id: 'tight', label: 'Tight' }, { id: 'spacious', label: 'Spacious' }]} /></Row>
-          <Row label="Separator"><Segmented value={d.subinfoStyle ?? 'colon'} onChange={(v) => set({ subinfoStyle: v as 'colon' | 'dash' | 'bracket' })} options={[{ id: 'colon', label: ':' }, { id: 'dash', label: '–' }, { id: 'bracket', label: '( )' }]} /></Row>
+          <Check label="Start rows with bullets" checked={d.bulletRows ?? false} onChange={(v) => set({ bulletRows: v })} />
+          <Row label="Subinfo Style"><Segmented value={d.subinfoStyle ?? 'colon'} onChange={(v) => set({ subinfoStyle: v as 'colon' | 'dash' | 'bracket' })} options={[{ id: 'colon', label: ': Colon' }, { id: 'dash', label: '– Dash' }, { id: 'bracket', label: '( ) Bracket' }]} /></Row>
         </>
       )}
       {style === 'compact' && (

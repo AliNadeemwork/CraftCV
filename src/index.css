@@ -63,6 +63,9 @@ textarea:focus-visible,
 .cv-rich ul { margin: 0.2em 0; padding-left: 1.1em; list-style: disc; }
 .cv-rich ol { margin: 0.2em 0; padding-left: 1.2em; list-style: decimal; }
 .cv-rich li { margin: 0.1em 0; }
+.cv-hyphen ul { list-style: none; padding-left: 0.9em; }
+.cv-hyphen ul li { position: relative; }
+.cv-hyphen ul li::before { content: '\2013'; position: absolute; left: -0.9em; }
 .cv-rich a { color: inherit; text-decoration: underline; }
 .cv-rich b, .cv-rich strong { font-weight: 700; }
 .cv-rich i, .cv-rich em { font-style: italic; }

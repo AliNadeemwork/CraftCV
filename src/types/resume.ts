@@ -325,6 +325,8 @@ export interface DisplayOptions {
   subinfoStyle?: SubinfoStyle;
   categorySeparator?: CategorySeparator;
   levelSubStyle?: LevelSubStyle;
+  /** Prefix each row with a bullet (rows display). */
+  bulletRows?: boolean;
 }
 /** Heading letter-casing. 'auto' defers to the template's own choice. */
 export type HeadingCase = 'auto' | 'normal' | 'upper';
@@ -424,6 +426,25 @@ export interface Design {
   linkIcon?: boolean;
   /** Which header fields get link styling (undefined = links default). */
   linkScope?: LinkScope;
+
+  // --- Entry Layout (advanced) ---
+  entrySplit?: EntrySplit;
+  entrySplitRatio?: number; // % width of the title column when split is manual
+  locationPlacement?: FieldPlacement;
+  dateLocationOrder?: DateLocationOrder;
+  subtitleStyle?: TextEmphasis;
+  dateStyle?: TextEmphasis;
+  locationStyle?: TextEmphasis;
+  indentBody?: boolean;
+  listStyle?: ListStyle;
+
+  // --- Header (advanced) ---
+  professionalTitleStyle?: TextEmphasis; // name's professional title
+  professionalTitlePosition?: FieldPlacement; // same line as name, or below
+
+  // --- Multi-colour mode ---
+  textColor?: string;
+  pageBg?: string;
 }
 
 /** Accent placement: tint text (default), fill the header band, or a top border. */
@@ -435,7 +456,8 @@ export type ColorMode = 'single' | 'multi' | 'image';
 export interface AccentTargets {
   headings?: boolean; // default true
   name?: boolean; // default false
-  jobTitle?: boolean; // default true
+  jobTitle?: boolean; // header professional title (default true)
+  entryTitle?: boolean; // entry title/header across all sections (default false)
   entrySubtitle?: boolean; // default true
   dates?: boolean; // default false
   headingsLine?: boolean; // heading rule/decoration (default true)
@@ -459,6 +481,12 @@ export interface LinkScope {
   linkedin?: boolean;
   github?: boolean;
 }
+/** Text weight/emphasis for entry meta fields. */
+export type TextEmphasis = 'normal' | 'bold' | 'italic';
+export type EntrySplit = 'auto' | 'manual';
+export type FieldPlacement = 'sameline' | 'below';
+export type DateLocationOrder = 'date-location' | 'location-date';
+export type ListStyle = 'bullet' | 'hyphen';
 
 // --- Meta ------------------------------------------------------------------
 

@@ -153,11 +153,13 @@ function Header({
     color: banner ? '#fff' : ctx.onAccent ? '#fff' : nameAccent ? accent : '#161616',
     fontFamily: ctx.nameFont ?? undefined,
   };
+  const titleInline = ctx.professionalTitlePosition === 'sameline';
   const titleStyle: CSSProperties = {
     fontSize: `${1.05 + (ctx.titleSizeOffset ?? 0)}em`,
-    fontWeight: 600,
+    fontWeight: ctx.professionalTitleStyle === 'bold' ? 700 : 600,
+    fontStyle: ctx.professionalTitleStyle === 'italic' ? 'italic' : 'normal',
     color: banner ? 'rgba(255,255,255,0.92)' : jobAccent ? accent : '#555',
-    marginTop: '0.1em',
+    marginTop: titleInline ? 0 : '0.1em',
   };
 
   const align = ctx.headerAlign ?? 'top';
@@ -175,8 +177,17 @@ function Header({
     >
       {ctx.showPhoto && <Photo p={p} ctx={ctx} />}
       <div style={{ minWidth: 0, textAlign: textBlockAlign as CSSProperties['textAlign'] }}>
-        <div style={nameStyle}>{p.name || 'Your Name'}</div>
-        {p.jobTitle && <div style={titleStyle}>{p.jobTitle}</div>}
+        {titleInline && p.jobTitle ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '0.4em', justifyContent: centered ? 'center' : align === 'right' ? 'flex-end' : 'flex-start' }}>
+            <span style={nameStyle}>{p.name || 'Your Name'}</span>
+            <span style={titleStyle}>{p.jobTitle}</span>
+          </div>
+        ) : (
+          <>
+            <div style={nameStyle}>{p.name || 'Your Name'}</div>
+            {p.jobTitle && <div style={titleStyle}>{p.jobTitle}</div>}
+          </>
+        )}
         <ContactLine p={p} ctx={{ ...ctx, onAccent: banner || ctx.onAccent }} icons={ctx.contactIcons} />
         {summaryHtml && (
           <div
