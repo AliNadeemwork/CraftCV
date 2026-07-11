@@ -145,6 +145,28 @@ function DualSplit({ leftLabel, rightLabel, value, onChange }: { leftLabel: stri
   return <div className="mt-2 grid grid-cols-2 gap-3">{box(leftLabel, value, 1)}{box(rightLabel, 100 - value, -1)}</div>;
 }
 
+/** Three linked width boxes (Left / Middle / Right) for Split mode. */
+function TripleSplit({ left, right, onChange }: { left: number; right: number; onChange: (l: number, r: number) => void }) {
+  const clampSide = (v: number) => Math.min(40, Math.max(10, v));
+  const mid = 100 - left - right;
+  const box = (label: string, pct: number, apply: (delta: number) => void) => (
+    <div>
+      <div className="mb-1 text-xs text-ink-soft">{label} {pct}%</div>
+      <div className="flex items-center justify-center gap-3 rounded-xl border border-black/10 py-2.5 dark:border-white/10">
+        <button className="focusable text-ink-soft" onClick={() => apply(-4)} aria-label={`Decrease ${label}`}><Minus size={15} /></button>
+        <button className="focusable text-ink-soft" onClick={() => apply(4)} aria-label={`Increase ${label}`}><Plus size={15} /></button>
+      </div>
+    </div>
+  );
+  return (
+    <div className="mt-2 grid grid-cols-3 gap-2">
+      {box('Left', left, (dl) => onChange(clampSide(left + dl), right))}
+      {box('Middle', mid, () => {})}
+      {box('Right', right, (dr) => onChange(left, clampSide(right + dr)))}
+    </div>
+  );
+}
+
 /** Collapsible "Advanced settings" panel. */
 function Accordion({ open, onToggle, label, children }: { open: boolean; onToggle: () => void; label: string; children: React.ReactNode }) {
   return (
@@ -302,8 +324,13 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
           <Segmented grow value={d.entryStructure ?? 'full'} onChange={(entryStructure) => set({ entryStructure })}
             options={[{ id: 'full', label: 'Full Width' }, { id: 'columns', label: 'Columns' }]} />
           <Label>Date &amp; Location Position</Label>
-          <Segmented grow value={(d.datePosition ?? 'right') as DatePosition} onChange={(datePosition) => set({ datePosition })}
-            options={[{ id: 'right', label: 'Right' }, { id: 'left', label: 'Left' }, { id: 'below', label: 'Below' }]} />
+          {(d.entryStructure ?? 'full') === 'columns' ? (
+            <Segmented grow value={(d.datePosition === 'left' || d.datePosition === 'split' ? d.datePosition : 'right') as DatePosition} onChange={(datePosition) => set({ datePosition })}
+              options={[{ id: 'right', label: 'Right' }, { id: 'left', label: 'Left' }, { id: 'split', label: 'Split' }]} />
+          ) : (
+            <Segmented grow value={(d.datePosition === 'below' ? 'below' : 'right') as DatePosition} onChange={(datePosition) => set({ datePosition })}
+              options={[{ id: 'right', label: 'Right' }, { id: 'below', label: 'Below Title' }]} />
+          )}
 
           {(d.entryStructure ?? 'full') !== 'columns' && (
             <>
@@ -330,7 +357,9 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
                 <Segmented grow value={d.entrySplit ?? 'auto'} onChange={(entrySplit) => set({ entrySplit })}
                   options={[{ id: 'auto', label: 'Auto' }, { id: 'manual', label: 'Manual' }]} />
                 {d.entrySplit === 'manual' && (
-                  <DualSplit leftLabel="Left" rightLabel="Right" value={d.entrySplitRatio ?? 62} onChange={(v) => set({ entrySplitRatio: v })} />
+                  d.datePosition === 'split'
+                    ? <TripleSplit left={d.splitLeft ?? 18} right={d.splitRight ?? 18} onChange={(l, r) => set({ splitLeft: l, splitRight: r })} />
+                    : <DualSplit leftLabel="Left" rightLabel="Right" value={d.entrySplitRatio ?? (d.datePosition === 'left' ? 22 : 62)} onChange={(v) => set({ entrySplitRatio: v })} />
                 )}
               </>
             )}

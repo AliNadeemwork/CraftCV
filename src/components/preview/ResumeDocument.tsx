@@ -102,6 +102,8 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
           headerImage: resume.design.colorMode === 'image' ? resume.design.headerImage ?? null : null,
           entrySplit: resume.design.entrySplit,
           entrySplitRatio: resume.design.entrySplitRatio,
+          splitLeft: resume.design.splitLeft,
+          splitRight: resume.design.splitRight,
           locationPlacement: resume.design.locationPlacement,
           dateLocationOrder: resume.design.dateLocationOrder,
           subtitleStyle: resume.design.subtitleStyle,

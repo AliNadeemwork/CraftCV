@@ -429,7 +429,9 @@ export interface Design {
 
   // --- Entry Layout (advanced) ---
   entrySplit?: EntrySplit;
-  entrySplitRatio?: number; // % width of the title column when split is manual
+  entrySplitRatio?: number; // % width of the title/left column (columns + right/left)
+  splitLeft?: number; // % of the left (date) column in Split mode
+  splitRight?: number; // % of the right (location) column in Split mode
   locationPlacement?: FieldPlacement;
   dateLocationOrder?: DateLocationOrder;
   subtitleStyle?: TextEmphasis;

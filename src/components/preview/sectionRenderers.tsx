@@ -276,6 +276,8 @@ export interface RenderContext {
   // entry layout (advanced)
   entrySplit?: 'auto' | 'manual';
   entrySplitRatio?: number;
+  splitLeft?: number;
+  splitRight?: number;
   locationPlacement?: 'sameline' | 'below';
   dateLocationOrder?: 'date-location' | 'location-date';
   subtitleStyle?: 'normal' | 'bold' | 'italic';
@@ -534,16 +536,33 @@ function EntryBlock({
   const manual = ctx.entrySplit === 'manual';
   const ratio = Math.min(80, Math.max(20, ctx.entrySplitRatio ?? (columns ? 62 : 60)));
 
-  // Columns: left holds title + subtitle + description; right holds the meta.
+  // Columns: the whole entry (title + description) sits beside a meta column,
+  // arranged by the Date & Location Position (right / left / split).
   if (columns) {
-    return (
-      <div style={{ display: 'flex', gap: '0.9em', alignItems: 'flex-start' }}>
-        <div style={{ minWidth: 0, flexBasis: manual ? `${ratio}%` : undefined, flexGrow: 1 }}>
-          {titleLine}{subBelow}{desc}
-        </div>
-        {metaColumn && <div style={{ flexBasis: manual ? `${100 - ratio}%` : undefined, flexShrink: 0 }}>{metaColumn}</div>}
-      </div>
+    const content = (fb?: string) => (
+      <div style={{ minWidth: 0, flexBasis: fb, flexGrow: 1 }}>{titleLine}{subBelow}{desc}</div>
     );
+    if (pos === 'split') {
+      // date on the left, content in the middle, location on the right.
+      const l = Math.min(40, Math.max(10, ctx.splitLeft ?? 18));
+      const r = Math.min(40, Math.max(10, ctx.splitRight ?? 18));
+      return (
+        <div style={{ display: 'flex', gap: '0.9em', alignItems: 'flex-start' }}>
+          <div style={{ flexBasis: manual ? `${l}%` : '7em', flexShrink: 0, fontSize: '0.9em', color: dateColor, ...emphasis(ctx.dateStyle) }}>{dateFrag}</div>
+          {content(manual ? `${100 - l - r}%` : undefined)}
+          <div style={{ flexBasis: manual ? `${r}%` : undefined, flexShrink: 0, textAlign: 'right', fontSize: '0.9em', color: locColor, ...emphasis(ctx.locationStyle) }}>{locFrag}</div>
+        </div>
+      );
+    }
+    const metaCol = metaParts.length ? (
+      <div style={{ whiteSpace: 'nowrap', fontSize: '0.9em', textAlign: pos === 'left' ? 'left' : 'right', display: 'flex', flexDirection: locSame ? 'row' : 'column', gap: locSame ? '0.4em' : 0, alignItems: pos === 'left' ? 'flex-start' : 'flex-end', flexBasis: manual ? `${pos === 'left' ? ratio : 100 - ratio}%` : undefined, flexShrink: 0 }}>
+        {metaParts.map((m, i) => <span key={i}>{locSame && i > 0 && <span style={{ opacity: 0.5 }}>| </span>}{m}</span>)}
+      </div>
+    ) : null;
+    if (pos === 'left') {
+      return <div style={{ display: 'flex', gap: '0.9em', alignItems: 'flex-start' }}>{metaCol}{content(manual ? `${100 - ratio}%` : undefined)}</div>;
+    }
+    return <div style={{ display: 'flex', gap: '0.9em', alignItems: 'flex-start' }}>{content(manual ? `${ratio}%` : undefined)}{metaCol}</div>;
   }
   // Left date column.
   if (leftPos && metaColumn) {
