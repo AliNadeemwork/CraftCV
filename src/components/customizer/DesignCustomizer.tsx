@@ -130,6 +130,21 @@ function Label({ children }: { children: React.ReactNode }) {
   return <div className="mb-1.5 mt-3 text-sm font-semibold text-ink first:mt-0 dark:text-neutral-200">{children}</div>;
 }
 
+/** Two linked width boxes (left % / right %) with −/+ steppers. */
+function DualSplit({ leftLabel, rightLabel, value, onChange }: { leftLabel: string; rightLabel: string; value: number; onChange: (v: number) => void }) {
+  const clamp = (v: number) => Math.min(80, Math.max(20, v));
+  const box = (label: string, pct: number, dir: 1 | -1) => (
+    <div>
+      <div className="mb-1 text-xs text-ink-soft">{label} {pct}%</div>
+      <div className="flex items-center justify-center gap-3 rounded-xl border border-black/10 py-2.5 dark:border-white/10">
+        <button className="focusable text-ink-soft" onClick={() => onChange(clamp(value + dir * -4))} aria-label={`Decrease ${label}`}><Minus size={15} /></button>
+        <button className="focusable text-ink-soft" onClick={() => onChange(clamp(value + dir * 4))} aria-label={`Increase ${label}`}><Plus size={15} /></button>
+      </div>
+    </div>
+  );
+  return <div className="mt-2 grid grid-cols-2 gap-3">{box(leftLabel, value, 1)}{box(rightLabel, 100 - value, -1)}</div>;
+}
+
 /** Collapsible "Advanced settings" panel. */
 function Accordion({ open, onToggle, label, children }: { open: boolean; onToggle: () => void; label: string; children: React.ReactNode }) {
   return (
@@ -290,14 +305,15 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
           <Segmented grow value={(d.datePosition ?? 'right') as DatePosition} onChange={(datePosition) => set({ datePosition })}
             options={[{ id: 'right', label: 'Right' }, { id: 'left', label: 'Left' }, { id: 'below', label: 'Below' }]} />
 
-          <Label>Entry Header Split</Label>
-          <Segmented grow value={d.entrySplit ?? 'auto'} onChange={(entrySplit) => set({ entrySplit })}
-            options={[{ id: 'auto', label: 'Auto' }, { id: 'manual', label: 'Manual' }]} />
-          {d.entrySplit === 'manual' && (
-            <div className="mt-1">
-              <Stepper label={`Title & Subtitle ${d.entrySplitRatio ?? 60}%`} value={d.entrySplitRatio ?? 60} min={30} max={80} step={5}
-                onChange={(entrySplitRatio) => set({ entrySplitRatio })} display={(v) => `${v} / ${100 - v}`} />
-            </div>
+          {(d.entryStructure ?? 'full') !== 'columns' && (
+            <>
+              <Label>Entry Header Split</Label>
+              <Segmented grow value={d.entrySplit ?? 'auto'} onChange={(entrySplit) => set({ entrySplit })}
+                options={[{ id: 'auto', label: 'Auto' }, { id: 'manual', label: 'Manual' }]} />
+              {d.entrySplit === 'manual' && (
+                <DualSplit leftLabel="Title & Subtitle" rightLabel="Date & Location" value={d.entrySplitRatio ?? 60} onChange={(v) => set({ entrySplitRatio: v })} />
+              )}
+            </>
           )}
 
           <Label>Subtitle Placement</Label>
@@ -308,6 +324,16 @@ export default function DesignCustomizer({ resume }: { resume: Resume }) {
             options={[{ id: 'sameline', label: 'Try Same Line' }, { id: 'below', label: 'Below Date' }]} />
 
           <Accordion open={advEntries} onToggle={() => setAdvEntries((o) => !o)} label="Advanced settings">
+            {(d.entryStructure ?? 'full') === 'columns' && (
+              <>
+                <Label>Column Width</Label>
+                <Segmented grow value={d.entrySplit ?? 'auto'} onChange={(entrySplit) => set({ entrySplit })}
+                  options={[{ id: 'auto', label: 'Auto' }, { id: 'manual', label: 'Manual' }]} />
+                {d.entrySplit === 'manual' && (
+                  <DualSplit leftLabel="Left" rightLabel="Right" value={d.entrySplitRatio ?? 62} onChange={(v) => set({ entrySplitRatio: v })} />
+                )}
+              </>
+            )}
             <Label>Subtitle</Label>
             <EmphasisPicker value={d.subtitleStyle} onChange={(subtitleStyle) => set({ subtitleStyle })} />
             <Label>Date</Label>

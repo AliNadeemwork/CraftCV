@@ -467,87 +467,6 @@ const emphasis = (e: 'normal' | 'bold' | 'italic' | undefined, base = 400): CSSP
   fontStyle: e === 'italic' ? 'italic' : 'normal',
 });
 
-function EntryHead({
-  primary,
-  secondary,
-  right,
-  loc,
-  ctx,
-}: {
-  primary: ReactNode;
-  secondary?: ReactNode;
-  right?: string;
-  loc?: string;
-  ctx: RenderContext;
-}): ReactNode {
-  const pos = ctx.datePosition ?? 'right';
-  const below = pos === 'below';
-  const full = ctx.entryStructure === 'full';
-  const subAccent = ctx.accentTargets?.entrySubtitle !== false;
-  const titleColor = ctx.accentTargets?.entryTitle && !ctx.onAccent ? ctx.accent : strong(ctx.onAccent);
-  const subColor = ctx.onAccent ? 'rgba(255,255,255,0.9)' : subAccent ? ctx.accent : '#555';
-  const dateColor = ctx.accentTargets?.dates && !ctx.onAccent ? ctx.accent : muted(ctx.onAccent);
-  const locColor = muted(ctx.onAccent);
-  const headSize = `${1 + (ctx.entryHeaderSizeOffset ?? 0)}em`;
-  const sameLine = ctx.subtitlePlacement === 'sameline';
-  const locSame = ctx.locationPlacement !== 'below'; // default: location beside/with date
-
-  // Build date + location fragments in the chosen order.
-  const dateFrag = right ? <span style={{ color: dateColor, ...emphasis(ctx.dateStyle) }}>{right}</span> : null;
-  const locFrag = loc ? <span style={{ color: locColor, ...emphasis(ctx.locationStyle) }}>{loc}</span> : null;
-  const ordered = ctx.dateLocationOrder === 'location-date' ? [locFrag, dateFrag] : [dateFrag, locFrag];
-  const metaParts = ordered.filter(Boolean) as ReactNode[];
-  const metaInline = metaParts.length ? (
-    <span style={{ fontSize: '0.9em' }}>{metaParts.map((m, i) => <span key={i}>{i > 0 && <span style={{ opacity: 0.5 }}> | </span>}{m}</span>)}</span>
-  ) : null;
-  const metaColumn = metaParts.length ? (
-    <div style={{ whiteSpace: 'nowrap', fontSize: '0.9em', textAlign: below || pos === 'left' ? 'left' : 'right', display: 'flex', flexDirection: locSame ? 'row' : 'column', gap: locSame ? '0.4em' : 0, alignItems: below || pos === 'left' ? 'flex-start' : 'flex-end' }}>
-      {metaParts.map((m, i) => <span key={i}>{locSame && i > 0 && <span style={{ opacity: 0.5 }}>| </span>}{m}</span>)}
-    </div>
-  ) : null;
-
-  const subtitleEl = secondary ? <span style={{ color: subColor, ...emphasis(ctx.subtitleStyle, 600) }}>{secondary}</span> : null;
-
-  const titleLine = (
-    <div style={{ fontWeight: 700, fontSize: headSize, color: titleColor }}>
-      {primary}
-      {sameLine && subtitleEl && <>{', '}{subtitleEl}</>}
-    </div>
-  );
-  const titleBlock = (
-    <div style={{ minWidth: 0 }}>
-      {titleLine}
-      {!sameLine && subtitleEl && <div>{subtitleEl}</div>}
-      {below && metaColumn}
-    </div>
-  );
-
-  // Full-width: title (+ inline subtitle) on the left, meta inline on the right.
-  if (full) {
-    return (
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75em', alignItems: 'baseline' }}>
-          {titleLine}
-          {metaInline && <div style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{metaInline}</div>}
-        </div>
-        {!sameLine && subtitleEl && <div>{subtitleEl}</div>}
-      </div>
-    );
-  }
-  if (pos === 'left' && metaColumn) {
-    return <div style={{ display: 'flex', gap: '0.75em' }}><div style={{ width: '7.5em', flexShrink: 0 }}>{metaColumn}</div>{titleBlock}</div>;
-  }
-  // columns (default): title left, meta right. Manual split fixes the widths.
-  const manual = ctx.entrySplit === 'manual';
-  const ratio = Math.min(80, Math.max(30, ctx.entrySplitRatio ?? 60));
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75em', alignItems: 'flex-start' }}>
-      <div style={{ minWidth: 0, flexBasis: manual ? `${ratio}%` : undefined, flexGrow: 1 }}>{titleBlock}</div>
-      {!below && metaColumn && <div style={{ flexBasis: manual ? `${100 - ratio}%` : undefined, flexShrink: 0 }}>{metaColumn}</div>}
-    </div>
-  );
-}
-
 /** Entry description with optional body indent + hyphen list style. */
 function EntryDesc({ html, ctx }: { html: string; ctx: RenderContext }): ReactNode {
   if (isRichTextEmpty(html)) return null;
@@ -555,42 +474,119 @@ function EntryDesc({ html, ctx }: { html: string; ctx: RenderContext }): ReactNo
   return <div className={cls} style={{ paddingLeft: ctx.indentBody ? '1.1em' : 0 }} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
+/**
+ * A full entry: title, subtitle, date, location and description, arranged by the
+ * entry-layout controls. In "columns" mode the whole left side (title +
+ * description) sits beside a right-hand meta column, so bullets never run under
+ * the date. Default ("full") keeps the description full width.
+ */
+function EntryBlock({
+  primary,
+  secondary,
+  right,
+  loc,
+  descHtml,
+  ctx,
+}: {
+  primary: ReactNode;
+  secondary?: ReactNode;
+  right?: string;
+  loc?: string;
+  descHtml?: string;
+  ctx: RenderContext;
+}): ReactNode {
+  const columns = ctx.entryStructure === 'columns';
+  const pos = ctx.datePosition ?? 'right';
+  const below = pos === 'below' && !columns;
+  const leftPos = pos === 'left' && !columns;
+  const subAccent = ctx.accentTargets?.entrySubtitle !== false;
+  const titleColor = ctx.accentTargets?.entryTitle && !ctx.onAccent ? ctx.accent : strong(ctx.onAccent);
+  const subColor = ctx.onAccent ? 'rgba(255,255,255,0.9)' : subAccent ? ctx.accent : '#555';
+  const dateColor = ctx.accentTargets?.dates && !ctx.onAccent ? ctx.accent : muted(ctx.onAccent);
+  const locColor = muted(ctx.onAccent);
+  const headSize = `${1 + (ctx.entryHeaderSizeOffset ?? 0)}em`;
+  const sameLine = ctx.subtitlePlacement === 'sameline';
+  const locSame = ctx.locationPlacement !== 'below';
+
+  const dateFrag = right ? <span style={{ color: dateColor, ...emphasis(ctx.dateStyle) }}>{right}</span> : null;
+  const locFrag = loc ? <span style={{ color: locColor, ...emphasis(ctx.locationStyle) }}>{loc}</span> : null;
+  const ordered = ctx.dateLocationOrder === 'location-date' ? [locFrag, dateFrag] : [dateFrag, locFrag];
+  const metaParts = ordered.filter(Boolean) as ReactNode[];
+  const rightAligned = !below && !leftPos;
+  const metaInline = metaParts.length ? (
+    <span style={{ fontSize: '0.9em', whiteSpace: 'nowrap' }}>{metaParts.map((m, i) => <span key={i}>{i > 0 && <span style={{ opacity: 0.5 }}> | </span>}{m}</span>)}</span>
+  ) : null;
+  const metaColumn = metaParts.length ? (
+    <div style={{ whiteSpace: 'nowrap', fontSize: '0.9em', textAlign: rightAligned ? 'right' : 'left', display: 'flex', flexDirection: locSame ? 'row' : 'column', gap: locSame ? '0.4em' : 0, alignItems: rightAligned ? 'flex-end' : 'flex-start' }}>
+      {metaParts.map((m, i) => <span key={i}>{locSame && i > 0 && <span style={{ opacity: 0.5 }}>| </span>}{m}</span>)}
+    </div>
+  ) : null;
+
+  const subtitleEl = secondary ? <span style={{ color: subColor, ...emphasis(ctx.subtitleStyle, 600) }}>{secondary}</span> : null;
+  const titleLine = (
+    <div style={{ fontWeight: 700, fontSize: headSize, color: titleColor }}>
+      {primary}
+      {sameLine && subtitleEl && <>{', '}{subtitleEl}</>}
+    </div>
+  );
+  const subBelow = !sameLine && subtitleEl ? <div>{subtitleEl}</div> : null;
+  const desc = descHtml ? <EntryDesc html={descHtml} ctx={ctx} /> : null;
+  const manual = ctx.entrySplit === 'manual';
+  const ratio = Math.min(80, Math.max(20, ctx.entrySplitRatio ?? (columns ? 62 : 60)));
+
+  // Columns: left holds title + subtitle + description; right holds the meta.
+  if (columns) {
+    return (
+      <div style={{ display: 'flex', gap: '0.9em', alignItems: 'flex-start' }}>
+        <div style={{ minWidth: 0, flexBasis: manual ? `${ratio}%` : undefined, flexGrow: 1 }}>
+          {titleLine}{subBelow}{desc}
+        </div>
+        {metaColumn && <div style={{ flexBasis: manual ? `${100 - ratio}%` : undefined, flexShrink: 0 }}>{metaColumn}</div>}
+      </div>
+    );
+  }
+  // Left date column.
+  if (leftPos && metaColumn) {
+    return (
+      <div>
+        <div style={{ display: 'flex', gap: '0.75em' }}>
+          <div style={{ width: '7.5em', flexShrink: 0 }}>{metaColumn}</div>
+          <div style={{ minWidth: 0 }}>{titleLine}{subBelow}</div>
+        </div>
+        {desc}
+      </div>
+    );
+  }
+  // Full-width (default): title row with inline meta on the right, desc full width.
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75em', alignItems: 'baseline' }}>
+        <div style={{ minWidth: 0 }}>{titleLine}</div>
+        {!below && metaInline && <div style={{ flexShrink: 0 }}>{metaInline}</div>}
+      </div>
+      {subBelow}
+      {below && metaColumn}
+      {desc}
+    </div>
+  );
+}
+
 function ExperienceRow({ e, ctx, subtitleFirst, hideCompany }: { e: ExperienceEntry; ctx: RenderContext; subtitleFirst?: boolean; hideCompany?: boolean }): ReactNode {
   const role = e.title || 'Role';
   const [primary, secondary] = hideCompany ? [role, ''] : subtitleFirst ? [e.company, role] : [role, e.company];
-  return (
-    <div>
-      <EntryHead primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} loc={e.location} ctx={ctx} />
-      <EntryDesc html={e.description} ctx={ctx} />
-    </div>
-  );
+  return <EntryBlock primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} loc={e.location} descHtml={e.description} ctx={ctx} />;
 }
 
 function EducationRow({ e, ctx, subtitleFirst }: { e: EducationEntry; ctx: RenderContext; subtitleFirst?: boolean }): ReactNode {
   const degree = e.degree || 'Degree';
   const [primary, secondary] = subtitleFirst ? [e.institution, degree] : [degree, e.institution];
-  return (
-    <div>
-      <EntryHead primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} loc={e.location} ctx={ctx} />
-      <EntryDesc html={e.description} ctx={ctx} />
-    </div>
-  );
+  return <EntryBlock primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} loc={e.location} descHtml={e.description} ctx={ctx} />;
 }
 
 function ProjectRow({ e, ctx, subtitleFirst }: { e: ProjectEntry; ctx: RenderContext; subtitleFirst?: boolean }): ReactNode {
   const name = e.name || 'Project';
   const [primary, secondary] = subtitleFirst ? [e.link || name, e.link ? name : ''] : [name, e.link];
-  return (
-    <div>
-      <EntryHead
-        primary={primary}
-        secondary={secondary}
-        right={formatRange(e.date, ctx.dateFormat)}
-        ctx={ctx}
-      />
-      <RichText html={e.description} />
-    </div>
-  );
+  return <EntryBlock primary={primary} secondary={secondary} right={formatRange(e.date, ctx.dateFormat)} descHtml={e.description} ctx={ctx} />;
 }
 
 function CertificateRow({ e, ctx }: { e: CertificateEntry; ctx: RenderContext }): ReactNode {
@@ -623,15 +619,13 @@ function TitleLink({ text, href, ctx }: { text: string; href?: string; ctx?: Ren
 }
 function AwardRow({ e, ctx }: { e: AwardEntry; ctx: RenderContext }): ReactNode {
   return (
-    <div>
-      <EntryHead
-        primary={<TitleLink text={e.title || 'Award'} href={e.link} />}
-        secondary={e.issuer}
-        right={e.date ? formatDateValue(e.date, ctx.dateFormat) : ''}
-        ctx={ctx}
-      />
-      <RichText html={e.description} />
-    </div>
+    <EntryBlock
+      primary={<TitleLink text={e.title || 'Award'} href={e.link} />}
+      secondary={e.issuer}
+      right={e.date ? formatDateValue(e.date, ctx.dateFormat) : ''}
+      descHtml={e.description}
+      ctx={ctx}
+    />
   );
 }
 
@@ -639,15 +633,13 @@ function PublicationRow({ e, ctx, subtitleFirst }: { e: PublicationEntry; ctx: R
   const date = formatYMD(e, ctx.dateFormat);
   const title = <TitleLink text={e.title || 'Publication'} href={e.link} />;
   return (
-    <div>
-      <EntryHead
-        primary={subtitleFirst && e.publisher ? e.publisher : title}
-        secondary={subtitleFirst && e.publisher ? title : e.publisher}
-        right={date}
-        ctx={ctx}
-      />
-      <RichText html={e.description} />
-    </div>
+    <EntryBlock
+      primary={subtitleFirst && e.publisher ? e.publisher : title}
+      secondary={subtitleFirst && e.publisher ? title : e.publisher}
+      right={date}
+      descHtml={e.description}
+      ctx={ctx}
+    />
   );
 }
 

@@ -292,30 +292,33 @@ function sectionBlocks(
       (section as { groupPromotions?: boolean }).groupPromotions;
 
     if (groupPromotions) {
-      // Group consecutive roles at the same employer under one company header.
+      // Group consecutive roles at the same employer under one company header,
+      // with a vertical connector line linking the grouped roles (FlowCV style).
+      const lineColor = ctx.onAccent ? 'rgba(255,255,255,0.5)' : '#cfcbc4';
       let pos = 0;
       let i = 0;
       while (i < visibleIdx.length) {
         const company = (allEntries[visibleIdx[i].i].company ?? '').trim();
+        let j = i;
+        const roleIdx: number[] = [];
+        while (j < visibleIdx.length && (allEntries[visibleIdx[j].i].company ?? '').trim() === company) {
+          roleIdx.push(visibleIdx[j].i);
+          j++;
+        }
         blocks.push({
           key: `${section.id}-grp-${pos}`,
           node: (
-            <div style={{ fontWeight: 700, color: '#1a1a1a' }}>{company || '—'}</div>
+            <div>
+              <div style={{ fontWeight: 700, color: ctx.onAccent ? '#fff' : '#1a1a1a' }}>{company || '—'}</div>
+              <div style={{ borderLeft: `1.5px solid ${lineColor}`, paddingLeft: '0.85em', marginLeft: '0.15em', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {roleIdx.map((idx) => (
+                  <div key={allEntries[idx].id}>{renderEntry(section, idx, ctx, { hideCompany: true })}</div>
+                ))}
+              </div>
+            </div>
           ),
           spacingBefore: pos === 0 ? 4 : 10,
-          keepWithNext: true,
         });
-        let j = i;
-        while (j < visibleIdx.length && (allEntries[visibleIdx[j].i].company ?? '').trim() === company) {
-          const idx = visibleIdx[j].i;
-          blocks.push({
-            key: `${section.id}-${allEntries[idx].id}`,
-            node: renderEntry(section, idx, ctx, { hideCompany: true }),
-            spacingBefore: j === i ? 3 : 7,
-            keepWithNext: false,
-          });
-          j++;
-        }
         i = j;
         pos++;
       }
