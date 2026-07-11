@@ -20,7 +20,7 @@ import { formatRange, formatDateValue } from '../../utils/date';
 import { isRichTextEmpty } from '../../utils/sanitize';
 import {
   Briefcase, GraduationCap, Wrench, Languages as LangIcon, FolderGit2, Award,
-  BookOpen, Users, Heart, FileText, Trophy, ScrollText, PenLine, User,
+  BookOpen, Users, Heart, FileText, Trophy, ScrollText, PenLine, User, Link as LinkIcon,
 } from 'lucide-react';
 
 /** Icon shown next to a section heading (when heading icons are enabled). */
@@ -258,12 +258,28 @@ export interface RenderContext {
   linkBlue?: boolean;
   nameSizeOffset?: number;
   headingSizeOffset?: number;
+  titleSizeOffset?: number;
+  entryHeaderSizeOffset?: number;
   nameBold?: boolean;
   accentTargets?: AccentTargets;
+  subtitlePlacement?: 'sameline' | 'below';
+  entryStructure?: 'full' | 'columns';
+  linkIcon?: boolean;
+  /** Expanded heading-style override, applied on top of titleStyle. */
+  headingOverride?: import('../../types/resume').HeadingStyleOverride;
+  /** Header contact-detail rendering. */
+  headerDelimiter?: 'icon' | 'bullet' | 'bar';
+  headerArrangement?: 'wrap' | 'grid';
+  headerIconStyle?: number;
+  linkScope?: import('../../types/resume').LinkScope;
+  headerImage?: string | null;
 }
 
 const muted = (onAccent: boolean) => (onAccent ? 'rgba(255,255,255,0.82)' : '#555');
 const strong = (onAccent: boolean) => (onAccent ? '#ffffff' : '#1a1a1a');
+/** Colour for level indicators (dots/bars/bubbles), respecting the accent target. */
+const indicatorOn = (ctx: RenderContext) =>
+  ctx.onAccent ? '#fff' : ctx.accentTargets?.indicators === false ? '#8a8a8a' : ctx.accent;
 
 export function RichText({ html }: { html: string }): ReactNode {
   if (isRichTextEmpty(html)) return null;
@@ -308,6 +324,48 @@ export function SectionHeading({
     marginBottom: '0.4em',
     color,
   };
+
+  // Expanded heading styles (FlowCV "Style" thumbnails) take priority when set.
+  const ov = ctx.headingOverride;
+  if (ov && ov !== 'auto') {
+    const lineColor = ctx.onAccent
+      ? 'rgba(255,255,255,0.6)'
+      : ctx.accentTargets?.headingsLine === false
+        ? '#c9c4bc'
+        : ctx.accent;
+    switch (ov) {
+      case 'plain':
+        return <h3 style={common}>{content}</h3>;
+      case 'underline':
+        return <h3 style={{ ...common, borderBottom: `2px solid ${lineColor}`, paddingBottom: '0.15em' }}>{content}</h3>;
+      case 'topbottom':
+        return <h3 style={{ ...common, borderTop: `1.5px solid ${lineColor}`, borderBottom: `1.5px solid ${lineColor}`, padding: '0.15em 0' }}>{content}</h3>;
+      case 'box':
+        return <h3 style={{ ...common, border: `1.5px solid ${lineColor}`, padding: '0.15em 0.5em', display: 'inline-block' }}>{content}</h3>;
+      case 'leftborder':
+        return <h3 style={{ ...common, borderLeft: `3px solid ${lineColor}`, paddingLeft: '0.5em' }}>{content}</h3>;
+      case 'bar':
+        return (
+          <h3 style={{ ...common, display: 'flex', alignItems: 'center', gap: '0.5em' }}>
+            <span style={{ display: 'inline-block', width: '0.9em', height: '0.9em', background: lineColor, borderRadius: 2 }} />
+            {content}
+          </h3>
+        );
+      case 'lineafter':
+        return (
+          <h3 style={{ ...common, display: 'flex', alignItems: 'center', gap: '0.6em' }}>
+            <span style={{ whiteSpace: 'nowrap' }}>{content}</span>
+            <span style={{ flex: 1, height: 1.5, background: lineColor }} />
+          </h3>
+        );
+      case 'wavy':
+        return (
+          <h3 style={{ ...common, textDecoration: 'underline', textDecorationStyle: 'wavy', textDecorationColor: lineColor, textUnderlineOffset: '0.25em' }}>
+            {content}
+          </h3>
+        );
+    }
+  }
 
   switch (ctx.titleStyle) {
     case 'underline':
@@ -402,34 +460,49 @@ function EntryHead({
   right?: string;
   ctx: RenderContext;
 }): ReactNode {
-  const below = ctx.datePosition === 'below';
+  const pos = ctx.datePosition ?? 'right';
+  const below = pos === 'below';
   const subAccent = ctx.accentTargets?.entrySubtitle !== false;
   const dateColor = ctx.accentTargets?.dates && !ctx.onAccent ? ctx.accent : muted(ctx.onAccent);
+  const headSize = `${1 + (ctx.entryHeaderSizeOffset ?? 0)}em`;
+  const sameLine = ctx.subtitlePlacement === 'sameline';
   const dateEl = right ? (
-    <div
-      style={{
-        whiteSpace: 'nowrap',
-        color: dateColor,
-        fontSize: '0.9em',
-        textAlign: below ? 'left' : 'right',
-        marginTop: below ? '0.05em' : 0,
-      }}
-    >
+    <div style={{ whiteSpace: 'nowrap', color: dateColor, fontSize: '0.9em', textAlign: below ? 'left' : 'right', marginTop: below ? '0.05em' : 0 }}>
       {right}
     </div>
   ) : null;
 
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75em' }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 700, color: strong(ctx.onAccent) }}>{primary}</div>
-        {secondary && (
-          <div style={{ color: ctx.onAccent ? 'rgba(255,255,255,0.9)' : subAccent ? ctx.accent : '#555', fontWeight: 600 }}>
-            {secondary}
-          </div>
+  const titleBlock = (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontWeight: 700, fontSize: headSize, color: strong(ctx.onAccent) }}>
+        {primary}
+        {sameLine && secondary && (
+          <span style={{ fontWeight: 600, color: ctx.onAccent ? 'rgba(255,255,255,0.9)' : subAccent ? ctx.accent : '#555' }}>
+            {' · '}{secondary}
+          </span>
         )}
-        {below && dateEl}
       </div>
+      {!sameLine && secondary && (
+        <div style={{ color: ctx.onAccent ? 'rgba(255,255,255,0.9)' : subAccent ? ctx.accent : '#555', fontWeight: 600 }}>
+          {secondary}
+        </div>
+      )}
+      {below && dateEl}
+    </div>
+  );
+
+  // 'left' → date in a fixed left column; 'split' → date right, vertically top.
+  if (pos === 'left' && right) {
+    return (
+      <div style={{ display: 'flex', gap: '0.75em' }}>
+        <div style={{ width: '7em', flexShrink: 0, color: dateColor, fontSize: '0.9em' }}>{right}</div>
+        {titleBlock}
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75em', alignItems: pos === 'split' ? 'baseline' : 'flex-start' }}>
+      {titleBlock}
       {!below && dateEl}
     </div>
   );
@@ -498,11 +571,13 @@ function CertificateRow({ e, ctx }: { e: CertificateEntry; ctx: RenderContext })
 }
 
 /** Render text, or a real hyperlink when a target is present (clickable in PDF). */
-function TitleLink({ text, href }: { text: string; href?: string }): ReactNode {
+function TitleLink({ text, href, ctx }: { text: string; href?: string; ctx?: RenderContext }): ReactNode {
   if (!href) return <>{text}</>;
   const url = /^https?:\/\//i.test(href) || /^mailto:|^tel:/i.test(href) ? href : `https://${href}`;
+  const iconColor = ctx && ctx.accentTargets?.linkIcons !== false && !ctx.onAccent ? ctx.accent : 'inherit';
   return (
-    <a href={url} target="_blank" rel="noreferrer noopener" style={{ color: 'inherit', textDecoration: 'none' }}>
+    <a href={url} target="_blank" rel="noreferrer noopener" style={{ color: 'inherit', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.25em' }}>
+      {ctx?.linkIcon && <LinkIcon size={11} style={{ flexShrink: 0, color: iconColor }} />}
       {text}
     </a>
   );
@@ -596,14 +671,7 @@ function LevelDots({ level, ctx }: { level: number; ctx: RenderContext }): React
             width: 6,
             height: 6,
             borderRadius: 999,
-            background:
-              i <= level
-                ? ctx.onAccent
-                  ? '#fff'
-                  : ctx.accent
-                : ctx.onAccent
-                  ? 'rgba(255,255,255,0.35)'
-                  : '#d8d3cc',
+            background: i <= level ? indicatorOn(ctx) : ctx.onAccent ? 'rgba(255,255,255,0.35)' : '#d8d3cc',
           }}
         />
       ))}
@@ -612,7 +680,7 @@ function LevelDots({ level, ctx }: { level: number; ctx: RenderContext }): React
 }
 
 function LevelBar({ level, ctx }: { level: number; ctx: RenderContext }): ReactNode {
-  const on = ctx.onAccent ? '#fff' : ctx.accent;
+  const on = indicatorOn(ctx);
   const off = ctx.onAccent ? 'rgba(255,255,255,0.28)' : '#e2ddd5';
   return (
     <span

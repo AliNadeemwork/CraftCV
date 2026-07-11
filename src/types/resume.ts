@@ -329,9 +329,18 @@ export interface DisplayOptions {
 /** Heading letter-casing. 'auto' defers to the template's own choice. */
 export type HeadingCase = 'auto' | 'normal' | 'upper';
 /** Heading treatment override. 'auto' defers to the template. */
-export type HeadingStyleOverride = 'auto' | 'underline' | 'bar' | 'plain';
+export type HeadingStyleOverride =
+  | 'auto'
+  | 'underline' // text with a full-width rule under it
+  | 'box' // text inside an outlined box
+  | 'bar' // small accent square before the text
+  | 'lineafter' // text then a rule filling the rest of the row
+  | 'plain' // no decoration
+  | 'topbottom' // rules above and below
+  | 'leftborder' // accent bar to the left
+  | 'wavy'; // wavy underline
 /** Where an entry's date sits. 'right' is the original right-aligned look. */
-export type DatePosition = 'right' | 'below';
+export type DatePosition = 'right' | 'below' | 'left' | 'split';
 /** Column layout override. 'auto' defers to the template. */
 export type LayoutOverride = 'auto' | 'one' | 'two-left' | 'two-right';
 
@@ -395,10 +404,32 @@ export interface Design {
   colorArea?: ColorArea;
   /** Which elements are tinted with the accent colour. */
   accentTargets?: AccentTargets;
+
+  // --- FlowCV-parity controls (all optional; undefined = current look) ---
+  /** Extra font-size offsets (em) added to the base for these roles. */
+  titleSizeOffset?: number;
+  entryHeaderSizeOffset?: number;
+  /** Entry layout. */
+  entryStructure?: EntryStructure;
+  subtitlePlacement?: SubtitlePlacement;
+  /** Colour mode + its extras. */
+  colorMode?: ColorMode;
+  colorSecondary?: string; // multi mode
+  headerImage?: string | null; // image mode: data URL behind the header
+  /** Header contact detail rendering. */
+  headerDelimiter?: HeaderDelimiter;
+  headerArrangement?: HeaderArrangement;
+  headerIconStyle?: number; // 0-6 frame style
+  /** Show a link icon next to hyperlinks. */
+  linkIcon?: boolean;
+  /** Which header fields get link styling (undefined = links default). */
+  linkScope?: LinkScope;
 }
 
 /** Accent placement: tint text (default), fill the header band, or a top border. */
 export type ColorArea = 'accent' | 'header' | 'border';
+/** Colour mode. 'single' is one accent; 'multi' adds a secondary; 'image' a header image. */
+export type ColorMode = 'single' | 'multi' | 'image';
 
 /** Fine-grained toggles for which elements take the accent colour. */
 export interface AccentTargets {
@@ -407,6 +438,26 @@ export interface AccentTargets {
   jobTitle?: boolean; // default true
   entrySubtitle?: boolean; // default true
   dates?: boolean; // default false
+  headingsLine?: boolean; // heading rule/decoration (default true)
+  headerIcons?: boolean; // header contact icons (default false)
+  indicators?: boolean; // skill dots/bars/bubbles (default true)
+  linkIcons?: boolean; // link icons (default true)
+}
+
+/** How header contact details are separated. */
+export type HeaderDelimiter = 'icon' | 'bullet' | 'bar';
+/** How header contact details flow. */
+export type HeaderArrangement = 'wrap' | 'grid';
+/** Entry structure: full-width stacked, or a content + meta column split. */
+export type EntryStructure = 'full' | 'columns';
+/** Where an entry's subtitle (employer/school) sits relative to the title. */
+export type SubtitlePlacement = 'sameline' | 'below';
+/** Which header contact fields get link styling. */
+export interface LinkScope {
+  email?: boolean;
+  phone?: boolean;
+  linkedin?: boolean;
+  github?: boolean;
 }
 
 // --- Meta ------------------------------------------------------------------

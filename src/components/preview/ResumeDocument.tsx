@@ -89,6 +89,17 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
           headingSizeOffset: resume.design.headingSizeOffset ?? 0,
           nameBold: resume.design.nameBold ?? true,
           accentTargets: resume.design.accentTargets,
+          titleSizeOffset: resume.design.titleSizeOffset ?? 0,
+          entryHeaderSizeOffset: resume.design.entryHeaderSizeOffset ?? 0,
+          subtitlePlacement: resume.design.subtitlePlacement,
+          entryStructure: resume.design.entryStructure,
+          linkIcon: resume.design.linkIcon ?? false,
+          headingOverride: resume.design.headingStyle,
+          headerDelimiter: resume.design.headerDelimiter ?? 'icon',
+          headerArrangement: resume.design.headerArrangement ?? 'wrap',
+          headerIconStyle: resume.design.headerIconStyle ?? 0,
+          linkScope: resume.design.linkScope,
+          headerImage: resume.design.colorMode === 'image' ? resume.design.headerImage ?? null : null,
         },
         sectionSpacing: resume.design.sectionSpacing,
         showPhoto: resume.design.showPhoto,
@@ -242,11 +253,16 @@ export default function ResumeDocument({ resume, mode = 'screen' }: Props) {
     const sideIdx = tracks.sidebar ? layout.side[p] ?? [] : [];
 
     if (twoCol) {
+      // Multi-colour mode uses a distinct secondary colour for the sidebar.
+      const solidFill =
+        resume.design.colorMode === 'multi' && resume.design.colorSecondary
+          ? resume.design.colorSecondary
+          : resume.design.accent;
       const sidebarFill =
         template.sidebarFill === 'solid'
-          ? resume.design.accent
+          ? solidFill
           : template.sidebarFill === 'tint'
-            ? tint(resume.design.accent)
+            ? tint(resume.design.colorMode === 'multi' && resume.design.colorSecondary ? resume.design.colorSecondary : resume.design.accent)
             : 'transparent';
       const sidebarEl = (
         <div

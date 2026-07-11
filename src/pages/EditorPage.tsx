@@ -40,25 +40,31 @@ export default function EditorPage() {
   const rtl = /^(ar|he|fa|ur)\b/.test(resume.meta.language);
 
   const editorPanel = (
-    <div className="thin-scroll h-full overflow-y-auto px-4 py-4">
-      <div className="mx-auto max-w-xl space-y-4">
-        <div className="flex gap-1 rounded-xl bg-black/5 p-1 dark:bg-white/5">
-          <TabButton active={tab === 'content'} onClick={() => setTab('content')} icon={<LayoutList size={15} />} label="Content" />
-          <TabButton active={tab === 'design'} onClick={() => setTab('design')} icon={<Palette size={15} />} label="Design" />
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="px-4 pt-4">
+        <div className="mx-auto max-w-xl">
+          <div className="flex gap-1 rounded-xl bg-black/5 p-1 dark:bg-white/5">
+            <TabButton active={tab === 'content'} onClick={() => setTab('content')} icon={<LayoutList size={15} />} label="Content" />
+            <TabButton active={tab === 'design'} onClick={() => setTab('design')} icon={<Palette size={15} />} label="Design" />
+          </div>
         </div>
+      </div>
 
-        {tab === 'content' ? (
-          <div className="space-y-5">
+      {tab === 'content' ? (
+        <div className="thin-scroll min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4">
+          <div className="mx-auto max-w-xl space-y-5">
             <div className="rounded-xl border border-black/10 bg-canvas/40 p-3 dark:border-white/10 dark:bg-white/[0.02]">
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">Personal details</h2>
               <PersonalInfoPanel resume={resume} />
             </div>
             <SectionsEditor resume={resume} />
           </div>
-        ) : (
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1 pt-3">
           <DesignCustomizer resume={resume} />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 
