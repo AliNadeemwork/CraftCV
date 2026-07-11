@@ -166,7 +166,7 @@ function EntryCard({
   onToggleHidden: () => void;
   languageLevels: LanguageLevel[];
 }) {
-  const header = summarize(section, entry);
+  const header = summarize(section, entry) ?? '';
   const hidden = !!entry.hidden;
   // Every entry type — skills and languages included — opens into a labeled form.
   // New/empty entries start expanded so you can type straight away.
@@ -235,23 +235,25 @@ function summarize(section: Section, entry: { id: string }): string {
       return [e.degree, e.institution].filter(Boolean).join(' · ');
     }
     case 'projects':
-      return (entry as ProjectEntry).name;
-    case 'certificates':
-      return (entry as CertificateEntry).name;
+      return (entry as ProjectEntry).name ?? '';
+    case 'certificates': {
+      const e = entry as CertificateEntry;
+      return [e.name, e.issuer].filter(Boolean).join(' · ');
+    }
     case 'awards':
-      return (entry as AwardEntry).title;
+      return (entry as AwardEntry).title ?? '';
     case 'publications':
-      return (entry as PublicationEntry).title;
+      return (entry as PublicationEntry).title ?? '';
     case 'references':
-      return (entry as ReferenceEntry).name;
+      return (entry as ReferenceEntry).name ?? '';
     case 'skills':
-      return (entry as SkillEntry).name;
+      return (entry as SkillEntry).name ?? '';
     case 'languages': {
       const e = entry as LanguageEntry;
       return e.name ? `${e.name}${e.level ? ` — ${e.level}` : ''}` : '';
     }
     default:
-      return (entry as SimpleEntry).title;
+      return (entry as SimpleEntry).title ?? '';
   }
 }
 

@@ -16,6 +16,10 @@ import type {
   ProjectEntry,
   DateRange,
   SimpleEntry,
+  CertificateEntry,
+  ReferenceEntry,
+  AwardEntry,
+  PublicationEntry,
 } from '../../types/resume';
 import { createResume, emptyRange } from '../factories';
 import { uid } from '../id';
@@ -472,9 +476,45 @@ function buildSection(def: (typeof HEADINGS)[number], rawLines: string[]): Secti
     return { ...base, kind: 'experience', entries } as Section;
   }
 
-  // interests / awards / publications / references → simple list
-  const entries: SimpleEntry[] = lines.map((l) => ({ id: uid('e'), title: stripBullet(l), description: '' }));
+  // Remaining kinds each need their own entry shape (a generic {title} entry
+  // would leave required fields like `name` undefined and render blank).
+  if (def.kind === 'certificates') {
+    const items = lines.flatMap((l) => splitListLine(stripBullet(l)));
+    const entries: CertificateEntry[] = items.map((name) => ({
+      id: uid('e'), name, issuer: '', date: '', link: '',
+    }));
+    return { ...base, kind: 'certificates', entries } as Section;
+  }
+  if (def.kind === 'references') {
+    const entries: ReferenceEntry[] = lines.map((l) => ({
+      id: uid('e'), name: stripBullet(l), link: '', jobTitle: '', organization: '', email: '', phone: '',
+    }));
+    return { ...base, kind: 'references', entries } as Section;
+  }
+  if (def.kind === 'awards') {
+    const entries: AwardEntry[] = lines.map((l) => ({
+      id: uid('e'), title: stripBullet(l), issuer: '', date: '', description: '', link: '',
+    }));
+    return { ...base, kind: 'awards', entries } as Section;
+  }
+  if (def.kind === 'publications') {
+    const entries: PublicationEntry[] = lines.map((l) => ({
+      id: uid('e'), title: stripBullet(l), link: '', publisher: '', year: '', month: '', day: '', description: '',
+    }));
+    return { ...base, kind: 'publications', entries } as Section;
+  }
+
+  // interests / custom → simple list. Split pipe/• separated blobs into items.
+  const entries: SimpleEntry[] = lines
+    .flatMap((l) => splitListLine(stripBullet(l)))
+    .map((title) => ({ id: uid('e'), title, description: '' }));
   return { ...base, kind: def.kind as 'interests', entries } as Section;
+}
+
+/** Split a "a | b • c" blob into trimmed items; returns the whole line if unsplit. */
+function splitListLine(line: string): string[] {
+  const parts = line.split(/\s*[|•·]\s*/).map((s) => s.trim()).filter(Boolean);
+  return parts.length ? parts : [line.trim()].filter(Boolean);
 }
 
 /**
